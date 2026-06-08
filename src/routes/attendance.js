@@ -1,0 +1,247 @@
+const express = require('express');
+const router = express.Router();
+const { query } = require('../database/connection');
+const { authMiddleware, requireRole } = require('../middleware/auth');
+const multer = require('multer');
+const csv = require('csv-parser');
+const fs = require('fs');
+
+const upload = multer({ dest: 'uploads/temp/' });
+
+router.use(authMiddleware);
+router.use(requireRole('admin', 'manager', 'employee'));
+
+// GET /api/attendance
+router.get('/', async (req, res) => {
+  try {
+    const { employee_id, client_id, from_date, to_date, status, page = 1, limit = 100 } = req.query;
+    let conditions = [];
+    let params = [];
+    let pc = 1;
+
+    if (employee_id) { conditions.push(`a.employee_id = $${pc}`); params.push(employee_id); pc++; }
+    if (client_id) { conditions.push(`a.client_id = $${pc}`); params.push(client_id); pc++; }
+    if (from_date) { conditions.push(`a.attendance_date >= $${pc}`); params.push(from_date); pc++; }
+    if (to_date) { conditions.push(`a.attendance_date <= $${pc}`); params.push(to_date); pc++; }
+    if (status) { conditions.push(`a.status = $${pc}`); params.push(status); pc++; }
+
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+
+    const result = await query(
+      `SELECT a.*, e.full_name as employee_name, e.employee_id as emp_id, c.name as client_name
+       FROM attendance a
+       JOIN employees e ON a.employee_id = e.id
+       LEFT JOIN clients c ON a.client_id = c.id
+       ${where}
+       ORDER BY a.attendance_date DESC, e.full_name ASC
+       LIMIT $${pc} OFFSET $${pc + 1}`,
+      [...params, parseInt(limit), offset]
+    );
+
+    const countResult = await query(`SELECT COUNT(*) FROM attendance a ${where}`, params);
+
+    res.json({
+      success: true,
+      data: result.rows,
+      pagination: { total: parseInt(countResult.rows[0].count), page: parseInt(page), limit: parseInt(limit) }
+    });
+  } catch (error) {
+    console.error('Get attendance error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch attendance' });
+  }
+});
+
+// POST /api/attendance (mark single)
+router.post('/', async (req, res) => {
+  try {
+    const { employee_id, client_id, attendance_date, check_in_time, check_out_time, status = 'present', notes } = req.body;
+    if (!employee_id || !attendance_date) {
+      return res.status(400).json({ success: false, message: 'Employee ID and date are required' });
+    }
+    if (new Date(attendance_date) > new Date()) {
+      return res.status(400).json({ success: false, message: 'Cannot mark attendance for future dates' });
+    }
+
+    let hours_worked = null;
+    if (check_in_time && check_out_time) {
+      const [inH, inM] = check_in_time.split(':').map(Number);
+      const [outH, outM] = check_out_time.split(':').map(Number);
+      let diff = (outH * 60 + outM) - (inH * 60 + inM);
+      if (diff < 0) diff += 24 * 60; // Handle overnight shifts
+      hours_worked = parseFloat((diff / 60).toFixed(2));
+    }
+
+    const result = await query(
+      `INSERT INTO attendance (employee_id, client_id, attendance_date, check_in_time, check_out_time, hours_worked, status, notes, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+       ON CONFLICT (employee_id, attendance_date) DO UPDATE SET
+         client_id=EXCLUDED.client_id, check_in_time=EXCLUDED.check_in_time, check_out_time=EXCLUDED.check_out_time,
+         hours_worked=EXCLUDED.hours_worked, status=EXCLUDED.status, notes=EXCLUDED.notes, updated_at=CURRENT_TIMESTAMP
+       RETURNING *`,
+      [employee_id, client_id || null, attendance_date, check_in_time || null, check_out_time || null, hours_worked, status, notes, req.user.userId]
+    );
+
+    res.status(201).json({ success: true, data: result.rows[0], message: 'Attendance marked successfully' });
+  } catch (error) {
+    console.error('Mark attendance error:', error);
+    res.status(500).json({ success: false, message: 'Failed to mark attendance' });
+  }
+});
+
+// POST /api/attendance/bulk
+router.post('/bulk', async (req, res) => {
+  try {
+    const { records } = req.body; // Array of attendance records
+    if (!records || !Array.isArray(records) || records.length === 0) {
+      return res.status(400).json({ success: false, message: 'Records array is required' });
+    }
+
+    let successCount = 0;
+    let errors = [];
+
+    for (const record of records) {
+      try {
+        const { employee_id, attendance_date, check_in_time, check_out_time, status = 'present', notes } = record;
+        let hours_worked = null;
+        if (check_in_time && check_out_time) {
+          const [inH, inM] = check_in_time.split(':').map(Number);
+          const [outH, outM] = check_out_time.split(':').map(Number);
+          let diff = (outH * 60 + outM) - (inH * 60 + inM);
+          if (diff < 0) diff += 24 * 60;
+          hours_worked = parseFloat((diff / 60).toFixed(2));
+        }
+        await query(
+          `INSERT INTO attendance (employee_id, attendance_date, check_in_time, check_out_time, hours_worked, status, notes, created_by)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+           ON CONFLICT (employee_id, attendance_date) DO UPDATE SET status=EXCLUDED.status`,
+          [employee_id, attendance_date, check_in_time || null, check_out_time || null, hours_worked, status, notes, req.user.userId]
+        );
+        successCount++;
+      } catch (err) {
+        errors.push({ record, error: err.message });
+      }
+    }
+
+    res.json({ success: true, message: `${successCount} records marked`, errors });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Bulk attendance failed' });
+  }
+});
+
+// GET /api/attendance/summary/:employee_id/:month (YYYY-MM)
+router.get('/summary/:employee_id/:month', async (req, res) => {
+  try {
+    const { employee_id, month } = req.params;
+    const [year, mon] = month.split('-');
+    const startDate = `${year}-${mon}-01`;
+    const endDate = new Date(parseInt(year), parseInt(mon), 0).toISOString().split('T')[0];
+
+    const result = await query(
+      `SELECT 
+        COUNT(*) FILTER (WHERE status = 'present') as present_days,
+        COUNT(*) FILTER (WHERE status = 'absent') as absent_days,
+        COUNT(*) FILTER (WHERE status = 'leave') as leave_days,
+        COUNT(*) FILTER (WHERE status = 'holiday') as holiday_days,
+        COUNT(*) FILTER (WHERE status = 'half_day') as half_days,
+        COALESCE(SUM(hours_worked), 0) as total_hours,
+        COUNT(*) as total_records
+       FROM attendance
+       WHERE employee_id = $1 AND attendance_date BETWEEN $2 AND $3`,
+      [employee_id, startDate, endDate]
+    );
+
+    res.json({ success: true, data: { ...result.rows[0], month, employee_id, start_date: startDate, end_date: endDate } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to get attendance summary' });
+  }
+});
+
+// POST /api/attendance/bulk-upload
+router.post('/bulk-upload', upload.single('file'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ success: false, message: 'No file uploaded' });
+  }
+
+  const results = [];
+  const errors = [];
+  let successCount = 0;
+
+  fs.createReadStream(req.file.path)
+    .pipe(csv())
+    .on('data', (data) => results.push(data))
+    .on('error', (err) => {
+      res.status(500).json({ success: false, message: 'Failed to read CSV file' });
+    })
+    .on('end', async () => {
+      try {
+        // Clean up the temp file
+        if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+
+      for (const row of results) {
+        try {
+          // Expected columns: employee_id, date, check_in, check_out, status, notes
+          // Find employee by employee_id string or just id
+          let empId = null;
+          if (row.id) {
+            empId = row.id;
+          } else if (row.employee_id) {
+            const empRes = await query('SELECT id FROM employees WHERE employee_id = $1', [row.employee_id]);
+            if (empRes.rows.length > 0) empId = empRes.rows[0].id;
+          }
+          
+          if (!empId) {
+            errors.push({ row, error: 'Employee not found' });
+            continue;
+          }
+
+          const attendance_date = row.date;
+          if (!attendance_date) {
+            errors.push({ row, error: 'Date is required' });
+            continue;
+          }
+
+          const check_in_time = row.check_in || null;
+          const check_out_time = row.check_out || null;
+          const status = row.status || 'present';
+          const notes = row.notes || '';
+
+          let hours_worked = null;
+          if (check_in_time && check_out_time) {
+            const [inH, inM] = check_in_time.split(':').map(Number);
+            const [outH, outM] = check_out_time.split(':').map(Number);
+            let diff = (outH * 60 + outM) - (inH * 60 + inM);
+            if (diff < 0) diff += 24 * 60;
+            hours_worked = parseFloat((diff / 60).toFixed(2));
+          }
+
+          await query(
+            `INSERT INTO attendance (employee_id, attendance_date, check_in_time, check_out_time, hours_worked, status, notes, created_by)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+             ON CONFLICT (employee_id, attendance_date) DO UPDATE SET 
+               check_in_time=EXCLUDED.check_in_time, check_out_time=EXCLUDED.check_out_time, 
+               hours_worked=EXCLUDED.hours_worked, status=EXCLUDED.status, notes=EXCLUDED.notes`,
+            [empId, attendance_date, check_in_time, check_out_time, hours_worked, status, notes, req.user.userId]
+          );
+          successCount++;
+        } catch (err) {
+          errors.push({ row, error: err.message });
+        }
+      }
+
+      res.json({
+        success: true,
+        message: `Bulk upload completed. ${successCount} records added/updated. ${errors.length} failed.`,
+        successCount,
+        errors
+      });
+      } catch (err) {
+        console.error('Bulk upload error:', err);
+        if (!res.headersSent) {
+          res.status(500).json({ success: false, message: 'An error occurred during bulk processing' });
+        }
+      }
+    });
+});
+
+module.exports = router;

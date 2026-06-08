@@ -1,0 +1,233 @@
+const express = require('express');
+const router = express.Router();
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const { query } = require('../database/connection');
+const { authMiddleware, requireRole } = require('../middleware/auth');
+const crypto = require('crypto');
+const { sendEmail } = require('../utils/email');
+const rateLimit = require('express-rate-limit');
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // Limit each IP to 5 login requests per windowMs
+  message: { success: false, message: 'Too many login attempts from this IP, please try again after 15 minutes' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// POST /api/auth/login
+router.post('/login', loginLimiter, async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ success: false, message: 'Email and password are required' });
+    }
+
+    const result = await query('SELECT * FROM users WHERE email = $1 AND is_active = true', [email.toLowerCase()]);
+    if (result.rows.length === 0) {
+      return res.status(401).json({ success: false, message: 'Invalid email or password' });
+    }
+
+    const user = result.rows[0];
+    const isValidPassword = await bcrypt.compare(password, user.password_hash);
+    if (!isValidPassword) {
+      return res.status(401).json({ success: false, message: 'Invalid email or password' });
+    }
+
+    // Update last login
+    await query('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1', [user.id]);
+
+    const token = jwt.sign(
+      { userId: user.id, email: user.email, role: user.role, name: user.full_name },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
+    );
+
+    res.json({
+      success: true,
+      message: 'Login successful',
+      data: {
+        token,
+        user: {
+          id: user.id,
+          email: user.email,
+          full_name: user.full_name,
+          role: user.role,
+          phone: user.phone
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ success: false, message: 'Login failed, please try again' });
+  }
+});
+
+// GET /api/auth/me
+router.get('/me', authMiddleware, async (req, res) => {
+  try {
+    const result = await query(
+      'SELECT id, email, full_name, role, phone, last_login, created_at FROM users WHERE id = $1',
+      [req.user.userId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch user' });
+  }
+});
+
+// POST /api/auth/change-password
+router.post('/change-password', authMiddleware, async (req, res) => {
+  try {
+    const { current_password, new_password } = req.body;
+    if (!current_password || !new_password) {
+      return res.status(400).json({ success: false, message: 'Both passwords are required' });
+    }
+    if (new_password.length < 6) {
+      return res.status(400).json({ success: false, message: 'New password must be at least 6 characters' });
+    }
+
+    const result = await query('SELECT password_hash FROM users WHERE id = $1', [req.user.userId]);
+    const user = result.rows[0];
+
+    const isValid = await bcrypt.compare(current_password, user.password_hash);
+    if (!isValid) {
+      return res.status(400).json({ success: false, message: 'Current password is incorrect' });
+    }
+
+    const newHash = await bcrypt.hash(new_password, parseInt(process.env.BCRYPT_ROUNDS) || 12);
+    await query('UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [newHash, req.user.userId]);
+
+    res.json({ success: true, message: 'Password changed successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to change password' });
+  }
+});
+
+// GET /api/auth/users (admin only)
+router.get('/users', authMiddleware, requireRole('admin'), async (req, res) => {
+  try {
+    const result = await query(
+      'SELECT id, email, full_name, role, phone, is_active, last_login, created_at FROM users ORDER BY created_at DESC'
+    );
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch users' });
+  }
+});
+
+// POST /api/auth/users (admin only)
+router.post('/users', authMiddleware, requireRole('admin'), async (req, res) => {
+  try {
+    const { email, password, full_name, role, phone } = req.body;
+    if (!email || !password || !full_name || !role) {
+      return res.status(400).json({ success: false, message: 'Email, password, name, and role are required' });
+    }
+
+    const hash = await bcrypt.hash(password, 12);
+    const result = await query(
+      'INSERT INTO users (email, password_hash, full_name, role, phone, created_by) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, email, full_name, role',
+      [email.toLowerCase(), hash, full_name, role, phone, req.user.userId]
+    );
+
+    res.status(201).json({ success: true, data: result.rows[0], message: 'User created successfully' });
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(400).json({ success: false, message: 'Email already exists' });
+    }
+    res.status(500).json({ success: false, message: 'Failed to create user' });
+  }
+});
+// POST /api/auth/forgot-password
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Email is required' });
+    }
+
+    const result = await query('SELECT * FROM users WHERE email = $1 AND is_active = true', [email.toLowerCase()]);
+    if (result.rows.length === 0) {
+      // Don't reveal that the user doesn't exist for security reasons
+      return res.json({ success: true, message: 'If an account exists, a password reset email has been sent.' });
+    }
+
+    const user = result.rows[0];
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    await query(
+      'UPDATE users SET reset_token = $1, reset_token_expires = $2 WHERE id = $3',
+      [hashedToken, expiresAt, user.id]
+    );
+
+    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password/${resetToken}`;
+    
+    const emailHtml = `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+        <h2 style="color: #0f766e;">Password Reset Request</h2>
+        <p>Hello ${user.full_name},</p>
+        <p>We received a request to reset your password. Click the button below to choose a new one:</p>
+        <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background-color: #0f766e; color: white; text-decoration: none; border-radius: 6px; margin: 20px 0;">Reset Password</a>
+        <p>If you didn't request this, you can safely ignore this email. The link will expire in 24 hours.</p>
+        <p style="margin-top: 40px; font-size: 12px; color: #777;">Security Agency Administration</p>
+      </div>
+    `;
+
+    await sendEmail({
+      to: user.email,
+      subject: 'Password Reset Request',
+      html: emailHtml,
+      text: `You requested a password reset. Please go to: ${resetUrl}`
+    });
+
+    res.json({ success: true, message: 'If an account exists, a password reset email has been sent.' });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ success: false, message: 'Failed to process password reset request' });
+  }
+});
+
+// POST /api/auth/reset-password
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { token, new_password } = req.body;
+    if (!token || !new_password) {
+      return res.status(400).json({ success: false, message: 'Token and new password are required' });
+    }
+    if (new_password.length < 6) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
+    }
+
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+    
+    const result = await query(
+      'SELECT id FROM users WHERE reset_token = $1 AND reset_token_expires > CURRENT_TIMESTAMP',
+      [hashedToken]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(400).json({ success: false, message: 'Token is invalid or has expired' });
+    }
+
+    const userId = result.rows[0].id;
+    const newHash = await bcrypt.hash(new_password, parseInt(process.env.BCRYPT_ROUNDS) || 12);
+    
+    await query(
+      'UPDATE users SET password_hash = $1, reset_token = NULL, reset_token_expires = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [newHash, userId]
+    );
+
+    res.json({ success: true, message: 'Password has been reset successfully. You can now login.' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ success: false, message: 'Failed to reset password' });
+  }
+});
+
+module.exports = router;
