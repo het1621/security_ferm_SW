@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { query } = require('../database/connection');
 const { authMiddleware, requireRole } = require('../middleware/auth');
+const { logError } = require('../utils/errorLogger');
 
 router.use(authMiddleware);
 router.use(requireRole('admin', 'manager', 'accountant', 'employee'));
@@ -21,7 +22,7 @@ router.get('/', async (req, res) => {
         COALESCE(SUM(payment_received), 0) as total_collected,
         COALESCE(SUM(payment_due), 0) as total_outstanding,
         COUNT(*) as invoice_count,
-        COUNT(*) FILTER (WHERE status = 'overdue') as overdue_count
+        SUM(CASE WHEN status = 'overdue' THEN 1 ELSE 0 END) as overdue_count
        FROM invoices WHERE invoice_date >= $1 AND status != 'cancelled'`,
       [monthStart]
     );
@@ -30,7 +31,7 @@ router.get('/', async (req, res) => {
     const empResult = await query(
       `SELECT 
         COUNT(*) as total_employees,
-        COUNT(*) FILTER (WHERE is_active = true) as active_employees
+        SUM(CASE WHEN is_active = true THEN 1 ELSE 0 END) as active_employees
        FROM employees`
     );
 
@@ -38,7 +39,7 @@ router.get('/', async (req, res) => {
     const clientResult = await query(
       `SELECT 
         COUNT(*) as total_clients,
-        COUNT(*) FILTER (WHERE is_active = true) as active_clients
+        SUM(CASE WHEN is_active = true THEN 1 ELSE 0 END) as active_clients
        FROM clients`
     );
 
@@ -57,15 +58,21 @@ router.get('/', async (req, res) => {
 
     // Last 6 months revenue trend
     const trendResult = await query(
-      `SELECT TO_CHAR(invoice_date, 'Mon') as month,
-        EXTRACT(MONTH FROM invoice_date) as month_num,
-        EXTRACT(YEAR FROM invoice_date) as year,
+      `SELECT 
+        CASE strftime('%m', invoice_date) 
+          WHEN '01' THEN 'Jan' WHEN '02' THEN 'Feb' WHEN '03' THEN 'Mar' 
+          WHEN '04' THEN 'Apr' WHEN '05' THEN 'May' WHEN '06' THEN 'Jun' 
+          WHEN '07' THEN 'Jul' WHEN '08' THEN 'Aug' WHEN '09' THEN 'Sep' 
+          WHEN '10' THEN 'Oct' WHEN '11' THEN 'Nov' WHEN '12' THEN 'Dec' 
+        END as month,
+        CAST(strftime('%m', invoice_date) AS INTEGER) as month_num,
+        CAST(strftime('%Y', invoice_date) AS INTEGER) as year,
         COALESCE(SUM(payment_received), 0) as collected,
         COALESCE(SUM(final_amount), 0) as billed
        FROM invoices
-       WHERE invoice_date >= CURRENT_DATE - INTERVAL '6 months' AND status != 'cancelled'
-       GROUP BY TO_CHAR(invoice_date, 'Mon'), EXTRACT(MONTH FROM invoice_date), EXTRACT(YEAR FROM invoice_date)
-       ORDER BY EXTRACT(YEAR FROM invoice_date) ASC, EXTRACT(MONTH FROM invoice_date) ASC`
+       WHERE invoice_date >= date('now', 'localtime', '-6 months') AND status != 'cancelled'
+       GROUP BY strftime('%m', invoice_date), strftime('%Y', invoice_date)
+       ORDER BY year ASC, month_num ASC`
     );
 
     // Recent invoices
@@ -129,6 +136,7 @@ router.get('/', async (req, res) => {
       }
     });
   } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'dashboard' });
     console.error('Dashboard error:', error);
     res.status(500).json({ success: false, message: 'Failed to load dashboard data' });
   }

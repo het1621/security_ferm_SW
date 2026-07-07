@@ -1,17 +1,57 @@
 {
   "name": "secuirty-agency-software",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "version": "1.1.0",
+  "description": "Enterprise Security Agency Platform for managing payroll, attendance, and clients.",
+  "author": "",
+  "main": "main.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "electron .",
+    "build:frontend": "cd frontend && npm run build",
+    "build": "npm run build:frontend && electron-builder",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "postinstall": "npx @electron/rebuild -f -w better-sqlite3"
+  },
+  "build": {
+    "appId": "com.security.agency",
+    "productName": "Security Firm Management",
+    "directories": {
+      "output": "electron-dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "src/**/*",
+      "frontend-dist/**/*",
+      "package.json",
+      "node_modules/**/*"
+    ],
+    "asarUnpack": [
+      "node_modules/better-sqlite3"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "build/icons/win/icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "Security Firm Management"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "het1621",
+      "repo": "security_ferm_SW"
+    }
   },
   "keywords": [],
-  "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
     "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^12.10.0",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "csv-parser": "^3.2.1",
     "decimal.js": "^10.6.0",
@@ -27,8 +67,16 @@
     "multer": "^2.1.1",
     "node-cron": "^4.2.1",
     "nodemailer": "^8.0.10",
+    "number-to-words": "^1.2.4",
     "pdfkit": "^0.18.0",
-    "pg": "^8.21.0",
+    "sqlite3": "^6.0.1",
+    "electron-updater": "^6.3.0",
     "uuid": "^14.0.0"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.3",
+    "electron": "^30.0.0",
+    "electron-builder": "^26.15.2",
+    "wait-on": "^9.0.10"
   }
 }

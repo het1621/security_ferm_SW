@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { ShieldAlert, Lock, Mail, Loader2 } from 'lucide-react';
+import { ShieldAlert, Lock, Mail, Loader2, Wifi } from 'lucide-react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showNetworkSetup, setShowNetworkSetup] = useState(false);
+  const [serverIP, setServerIP] = useState(localStorage.getItem('serverIP') || '');
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -98,10 +100,58 @@ export default function Login() {
               </button>
             </form>
           </div>
-          <div className="px-8 py-4 bg-slate-50 border-t border-slate-100 text-center">
+          <div className="px-8 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
             <p className="text-xs text-slate-500">Secure AES-256 Encrypted Connection</p>
+            <button 
+              onClick={() => setShowNetworkSetup(true)}
+              className="text-xs flex items-center text-slate-500 hover:text-teal-600 transition-colors"
+            >
+              <Wifi className="w-3 h-3 mr-1" />
+              Network Setup
+            </button>
           </div>
         </div>
+
+        {/* Network Setup Modal */}
+        {showNetworkSetup && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6 animate-slide-up">
+              <h3 className="text-lg font-bold text-slate-800 mb-2">Network Server Setup</h3>
+              <p className="text-sm text-slate-500 mb-4">
+                If you are connecting to the main computer over WiFi, enter its IP address here. Leave blank for the main computer.
+              </p>
+              <input
+                type="text"
+                placeholder="e.g. 192.168.1.100"
+                value={serverIP}
+                onChange={(e) => setServerIP(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:outline-none mb-4"
+              />
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => setShowNetworkSetup(false)}
+                  className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    if (serverIP) {
+                      localStorage.setItem('serverIP', serverIP);
+                    } else {
+                      localStorage.removeItem('serverIP');
+                    }
+                    setShowNetworkSetup(false);
+                    window.location.reload(); // Reload to re-initialize axios instance
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-white bg-teal-600 rounded-lg hover:bg-teal-700"
+                >
+                  Save & Connect
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

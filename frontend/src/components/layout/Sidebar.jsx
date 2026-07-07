@@ -1,4 +1,5 @@
-import { NavLink } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { 
   LayoutDashboard, 
@@ -10,6 +11,8 @@ import {
   Receipt,
   PieChart,
   Settings,
+  Archive,
+  Wallet,
   X
 } from 'lucide-react';
 import classNames from 'classnames';
@@ -18,19 +21,31 @@ const navItems = [
   { name: 'Dashboard', path: '/', icon: LayoutDashboard, roles: ['admin', 'manager', 'accountant', 'employee'] },
   { name: 'Clients', path: '/clients', icon: Users, roles: ['admin', 'manager'] },
   { name: 'Employees', path: '/employees', icon: UserSquare2, roles: ['admin', 'manager'] },
-  { name: 'Attendance', path: '/attendance', icon: CalendarCheck, roles: ['admin', 'manager', 'employee'] },
   { name: 'Invoicing', path: '/invoices', icon: FileText, roles: ['admin', 'accountant'] },
   { name: 'Payroll', path: '/payroll', icon: Banknote, roles: ['admin', 'accountant'] },
+  { name: 'Employee Ledger', path: '/ledger', icon: Banknote, roles: ['admin', 'accountant', 'manager'] },
   { name: 'Expenses', path: '/expenses', icon: Receipt, roles: ['admin', 'accountant', 'manager'] },
+  { name: 'Vendor Ledger', path: '/vendor-statements', icon: FileText, roles: ['admin', 'accountant', 'manager'] },
   { name: 'Reports', path: '/reports', icon: PieChart, roles: ['admin', 'manager', 'accountant'] },
+  { name: 'Tax Reports', path: '/tax-reports', icon: Receipt, roles: ['admin', 'manager', 'accountant'] },
+  { name: 'Statement Archive', path: '/statements', icon: Archive, roles: ['admin', 'manager', 'accountant'] },
+  { name: 'P&L Account', path: '/pl-account', icon: Wallet, roles: ['admin'] },
   { name: 'divider' },
   { name: 'Settings', path: '/settings', icon: Settings, roles: ['admin'] },
 ];
 
 export default function Sidebar({ mobileMenuOpen, setMobileMenuOpen }) {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const filteredNav = navItems.filter(item => item.name === 'divider' || item.roles.includes(user?.role));
+
+  const [appVersion, setAppVersion] = useState('');
+  useEffect(() => {
+    if (window.electronAPI?.getAppVersion) {
+      window.electronAPI.getAppVersion().then(v => setAppVersion(v));
+    }
+  }, []);
 
   return (
     <>
@@ -44,13 +59,20 @@ export default function Sidebar({ mobileMenuOpen, setMobileMenuOpen }) {
 
       {/* Sidebar container */}
       <div className={classNames(
-        "fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 border-r border-slate-800 flex flex-col transition-transform duration-300 ease-in-out md:relative md:translate-x-0",
+        "fixed inset-y-0 left-0 z-50 w-64 h-full bg-slate-900 border-r border-slate-800 flex flex-col transition-transform duration-300 ease-in-out md:relative md:translate-x-0",
         mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="flex items-center justify-between h-16 bg-slate-950 px-4 shadow-sm">
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-teal-500 rounded-lg flex items-center justify-center shadow-lg shadow-teal-500/20">
-              <span className="text-white font-bold text-xl leading-none">S</span>
+            <div 
+              className="w-8 h-8 bg-teal-500 rounded-lg flex items-center justify-center shadow-lg shadow-teal-500/20 cursor-pointer"
+              onDoubleClick={() => {
+                setMobileMenuOpen(false);
+                navigate('/developer');
+              }}
+              title="SecurManage"
+            >
+              <span className="text-white font-bold text-xl leading-none select-none">S</span>
             </div>
             <span className="text-white font-bold text-lg tracking-wide uppercase">SecurManage</span>
           </div>
@@ -84,6 +106,11 @@ export default function Sidebar({ mobileMenuOpen, setMobileMenuOpen }) {
               );
             })}
           </nav>
+          {appVersion && (
+            <div className="px-4 py-3 border-t border-slate-800">
+              <p className="text-xs text-slate-500 text-center">v{appVersion}</p>
+            </div>
+          )}
         </div>
       </div>
     </>

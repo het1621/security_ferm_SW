@@ -104,7 +104,11 @@ export default function Clients() {
       setFormData({ ...emptyForm });
       fetchClients();
     } catch (err) {
-      setError(err.message || 'Failed to save client');
+      if (err.errors && Array.isArray(err.errors)) {
+        setError(err.errors.map(e => e.message).join(' | '));
+      } else {
+        setError(err.message || 'Failed to save client');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -188,6 +192,17 @@ export default function Clients() {
       fetchClients();
     } catch (err) {
       console.error('Failed to deactivate client', err);
+    }
+  };
+
+  const handleHardDelete = async (id) => {
+    try {
+      await api.delete(`/clients/${id}/hard`);
+      setConfirmDelete(null);
+      fetchClients();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to permanently delete client');
+      console.error('Failed to permanently delete client', err);
     }
   };
 
@@ -351,10 +366,13 @@ export default function Clients() {
                           </button>
                         )}
                         {client.is_active && (
-                          <button onClick={() => setConfirmDelete(client.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Deactivate">
-                            <Trash2 className="w-4 h-4" />
+                          <button onClick={() => setConfirmDelete({ id: client.id, type: 'deactivate' })} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors" title="Deactivate">
+                            <XCircle className="w-4 h-4" />
                           </button>
                         )}
+                        <button onClick={() => setConfirmDelete({ id: client.id, type: 'hard' })} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete Permanently">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -367,18 +385,27 @@ export default function Clients() {
       </div>
 
       {/* Modals */}
-      {/* Deactivate Confirmation */}
+      {/* Deactivate/Delete Confirmation */}
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fade-in">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 animate-slide-up">
-            <h3 className="text-lg font-bold text-slate-800 mb-2">Confirm Deactivation</h3>
-            <p className="text-sm text-slate-600 mb-6">Are you sure you want to deactivate this client? This will not delete the client record.</p>
+            <h3 className="text-lg font-bold text-slate-800 mb-2">
+              {confirmDelete.type === 'deactivate' ? 'Confirm Deactivation' : 'Confirm Permanent Delete'}
+            </h3>
+            <p className="text-sm text-slate-600 mb-6">
+              {confirmDelete.type === 'deactivate' 
+                ? 'Are you sure you want to deactivate this client? This will not delete the client record.' 
+                : 'Are you sure you want to PERMANENTLY delete this client? This action cannot be undone and will fail if they have linked invoices or employees.'}
+            </p>
             <div className="flex justify-end gap-3">
               <button onClick={() => setConfirmDelete(null)} className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors">
                 Cancel
               </button>
-              <button onClick={() => handleDeactivate(confirmDelete)} className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors shadow-sm">
-                Deactivate
+              <button 
+                onClick={() => confirmDelete.type === 'deactivate' ? handleDeactivate(confirmDelete.id) : handleHardDelete(confirmDelete.id)} 
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors shadow-sm"
+              >
+                {confirmDelete.type === 'deactivate' ? 'Deactivate' : 'Delete Permanently'}
               </button>
             </div>
           </div>
@@ -465,7 +492,7 @@ export default function Clients() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 overflow-y-auto">
+            <form onSubmit={handleSubmit} className="p-6 overflow-y-auto flex-1 min-h-0">
               {error && <div className="mb-4 p-3 bg-red-50 text-red-700 text-sm rounded-lg">{error}</div>}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
@@ -590,7 +617,7 @@ export default function Clients() {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
+            <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50 min-h-0">
               {statementLoading ? (
                 <div className="flex justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>
               ) : statementData ? (

@@ -15,3 +15,31 @@
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+.animate-scale-in {
+  animation: scaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Expanded chart overlay — force Recharts containers to fill all available height */
+.expanded-chart-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.expanded-chart-container .recharts-responsive-container {
+  flex: 1 !important;
+  height: 100% !important;
+  min-height: 0 !important;
+}
+
+/* Print styles — hide sidebar, topbar, and other non-printable elements */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}

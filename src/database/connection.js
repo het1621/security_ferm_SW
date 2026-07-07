@@ -1,44 +1,152 @@
-const { Pool } = require('pg');
+const fs = require('fs');
+const path = require('path');
+const Database = require('better-sqlite3');
+const bcrypt = require('bcryptjs');
+const { runMigrations } = require('./migrationRunner');
 
-const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT) || 5432,
-  database: process.env.DB_NAME || 'security_firm_db',
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'postgres',
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-});
+// Determine database path
+// In Electron, main.js will set process.env.DB_PATH.
+// In dev, it defaults to project root.
+const dbPath = process.env.DB_PATH || path.join(process.cwd(), 'database.sqlite');
+const isDev = process.env.NODE_ENV !== 'production';
 
-pool.on('error', (err) => {
-  console.error('Unexpected error on idle client', err);
-});
+let db;
 
-// Test connection
-pool.connect((err, client, release) => {
-  if (err) {
-    console.error('❌ Database connection failed:', err.message);
-    console.log('⚠️  Running in demo mode without database');
+function initDB() {
+  const dbExists = fs.existsSync(dbPath);
+  db = new Database(dbPath, { verbose: isDev ? console.log : null });
+  
+  // Enable foreign keys
+  db.pragma('foreign_keys = ON');
+
+  if (!dbExists) {
+    console.log('database.sqlite not found. Initializing new database...');
+    const schemaPath = path.join(__dirname, 'schema.sql');
+    if (fs.existsSync(schemaPath)) {
+      const schemaSql = fs.readFileSync(schemaPath, 'utf8');
+      db.exec(schemaSql);
+      console.log('Database initialized with schema.sql');
+      
+      // Ensure seed admin data
+      try {
+        const checkAdmin = db.prepare('SELECT id FROM users WHERE email = ?').get('admin@admin.com');
+        if (!checkAdmin) {
+          const hash = bcrypt.hashSync('password123', 12);
+          const insertUser = db.prepare(`
+            INSERT INTO users (email, password_hash, full_name, role, is_active)
+            VALUES (?, ?, ?, ?, 1)
+          `);
+          insertUser.run('admin@admin.com', hash, 'System Administrator', 'admin');
+          console.log('Seed Admin user created: admin@admin.com / password123');
+        }
+      } catch (err) {
+        console.error('Error seeding admin user:', err);
+      }
+    } else {
+      console.error('schema.sql not found at', schemaPath);
+    }
   } else {
-    release();
-    console.log('✅ Database connected successfully');
+    console.log('✅ Database connected successfully (SQLite)');
   }
-});
 
-const query = async (text, params) => {
+  // Run pending migrations (safe on both new and existing databases)
+  try {
+    runMigrations(db);
+  } catch (err) {
+    console.error('⚠ Migration runner error (non-fatal):', err.message);
+  }
+}
+
+// Initialize on require
+initDB();
+
+// Mock Pool object to satisfy Express startup
+const pool = {
+  on: (event, handler) => {},
+  connect: (cb) => cb(null, {}, () => {}),
+  query: async (text, params) => query(text, params)
+};
+
+// Adapter function
+const query = async (text, params = []) => {
   const start = Date.now();
   try {
-    const res = await pool.query(text, params);
+    // 1. Convert PostgreSQL parameter syntax ($1, $2) to SQLite syntax (?)
+    //    Properly handle repeated $N references by expanding the params array.
+    //    In PostgreSQL, $1 always means the 1st param regardless of position.
+    //    In SQLite, each ? consumes the next param in order.
+    const expandedParams = [];
+    let sqliteText = text.replace(/\$(\d+)/g, (match, num) => {
+      const pgIndex = parseInt(num) - 1; // PostgreSQL is 1-indexed
+      if (pgIndex >= 0 && pgIndex < params.length) {
+        expandedParams.push(params[pgIndex]);
+      }
+      return '?';
+    });
+    
+    // 2. Remove RETURNING clauses (SQLite doesn't support them identically for all queries)
+    // Basic regex to strip RETURNING * or RETURNING id, etc.
+    const returningRegex = /\s+RETURNING\s+.+/i;
+    const match = sqliteText.match(returningRegex);
+    let returningRemoved = false;
+    if (match) {
+      sqliteText = sqliteText.replace(returningRegex, '');
+      returningRemoved = true;
+    }
+
+    // Determine query type
+    const isSelect = sqliteText.trim().toUpperCase().startsWith('SELECT');
+    
+    // Map params: SQLite doesn't support booleans natively
+    const mappedParams = expandedParams.map(p => {
+      if (typeof p === 'boolean') return p ? 1 : 0;
+      if (p instanceof Date) return p.toISOString();
+      return p;
+    });
+    
+    let res;
+    if (isSelect) {
+      const stmt = db.prepare(sqliteText);
+      const rows = stmt.all(...mappedParams);
+      res = { rows, rowCount: rows.length };
+    } else {
+      const stmt = db.prepare(sqliteText);
+      const info = stmt.run(...mappedParams);
+      
+      // Simulate pg response format
+      res = { rows: [], rowCount: info.changes };
+      
+      // If there was a returning clause on an insert, we try to simulate returning the row
+      if (returningRemoved && info.lastInsertRowid) {
+        // Try to fetch the full row if we can determine the table
+        const insertMatch = sqliteText.match(/INSERT\s+INTO\s+([a-zA-Z0-9_]+)/i);
+        if (insertMatch && insertMatch[1]) {
+          const tableName = insertMatch[1];
+          try {
+            const fetchStmt = db.prepare(`SELECT * FROM ${tableName} WHERE id = ?`);
+            const row = fetchStmt.get(info.lastInsertRowid);
+            res.rows = row ? [row] : [{ id: info.lastInsertRowid }];
+          } catch (err) {
+            // Fallback if table name extraction failed or table doesn't have an 'id' column
+            res.rows = [{ id: info.lastInsertRowid }];
+          }
+        } else {
+          // Return a mock object with id
+          res.rows = [{ id: info.lastInsertRowid }];
+        }
+      }
+    }
+
     const duration = Date.now() - start;
-    if (process.env.NODE_ENV === 'development' && duration > 1000) {
+    if (isDev && duration > 1000) {
       console.warn('Slow query detected:', { text, duration, rows: res.rowCount });
     }
+    
     return res;
   } catch (error) {
-    console.error('Database query error:', error.message);
+    console.error('Database query error:', error.message, '| Query:', text);
     throw error;
   }
 };
 
-module.exports = { pool, query };
+module.exports = { pool, query, db };

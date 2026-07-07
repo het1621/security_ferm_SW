@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const { query } = require('../database/connection');
 
 /**
  * Send an email using the configured SMTP credentials.
@@ -7,39 +8,57 @@ const nodemailer = require('nodemailer');
  * @param {string} options.subject - Email subject
  * @param {string} options.text - Plain text email body
  * @param {string} [options.html] - HTML email body (optional)
+ * @param {Array} [options.attachments] - Attachments array
  */
-const sendEmail = async ({ to, subject, text, html }) => {
-  // Check if SMTP is configured
-  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASSWORD) {
-    console.warn('SMTP is not fully configured in .env. Skipping email sending.');
-    return false;
-  }
-
+const sendEmail = async ({ to, subject, text, html, attachments }) => {
   try {
+    let smtpHost = process.env.SMTP_HOST;
+    let smtpPort = process.env.SMTP_PORT || 587;
+    let smtpUser = process.env.SMTP_USER;
+    let smtpPass = process.env.SMTP_PASSWORD;
+
+    // Fetch from system_settings
+    const settingResult = await query("SELECT setting_value FROM system_settings WHERE setting_key = 'smtp_settings'");
+    if (settingResult.rows.length > 0) {
+      const dbSmtp = JSON.parse(settingResult.rows[0].setting_value);
+      if (dbSmtp && dbSmtp.host && dbSmtp.user && dbSmtp.password) {
+        smtpHost = dbSmtp.host;
+        smtpPort = dbSmtp.port || 587;
+        smtpUser = dbSmtp.user;
+        smtpPass = dbSmtp.password;
+      }
+    }
+
+    if (!smtpHost || !smtpUser || !smtpPass) {
+      console.warn('SMTP is not fully configured in settings. Skipping email sending.');
+      throw new Error('SMTP is not fully configured in settings.');
+    }
+
     const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: process.env.SMTP_PORT || 587,
-      secure: process.env.SMTP_PORT == 465, // true for 465, false for other ports
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpPort == 465, // true for 465, false for other ports
       auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASSWORD,
+        user: smtpUser,
+        pass: smtpPass,
       },
     });
 
     const mailOptions = {
-      from: `"Security Agency System" <${process.env.SMTP_USER}>`,
+      from: `"Security Agency System" <${smtpUser}>`,
       to,
       subject,
       text,
       html,
+      attachments
     };
 
     const info = await transporter.sendMail(mailOptions);
     console.log(`Email sent: ${info.messageId}`);
     return true;
   } catch (error) {
-    console.error('Error sending email:', error);
-    return false;
+    console.error('Send email error:', error);
+    throw error;
   }
 };
 

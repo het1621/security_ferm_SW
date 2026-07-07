@@ -2,10 +2,20 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const { query } = require('../database/connection');
-const { authMiddleware, requireRole } = require('../middleware/auth');
+const { authMiddleware, requirePermission } = require('../middleware/auth');
+const multer = require('multer');
+const path = require('path');
+const crypto = require('crypto');
+const { logError } = require('../utils/errorLogger');
 
+const uploadDir = process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads');
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadDir),
+  filename: (req, file, cb) => cb(null, `agency_logo_${Date.now()}_${crypto.randomBytes(4).toString('hex')}${path.extname(file.originalname)}`)
+});
+const upload = multer({ storage });
 router.use(authMiddleware);
-router.use(requireRole('admin'));
+router.use(requirePermission('manage_settings'));
 
 // ═══════════════════════════════════════════════════════════════════
 //  SALARY STRUCTURES CRUD
@@ -24,6 +34,7 @@ router.get('/salary-structures', async (req, res) => {
     );
     res.json({ success: true, data: result.rows });
   } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'settings' });
     console.error('Fetch salary structures error:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch salary structures' });
   }
@@ -54,6 +65,7 @@ router.post('/salary-structures', async (req, res) => {
 
     res.status(201).json({ success: true, data: result.rows[0], message: 'Salary structure created' });
   } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'settings' });
     console.error('Create salary structure error:', error);
     res.status(500).json({ success: false, message: 'Failed to create salary structure' });
   }
@@ -92,6 +104,7 @@ router.put('/salary-structures/:id', async (req, res) => {
     }
     res.json({ success: true, data: result.rows[0], message: 'Salary structure updated' });
   } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'settings' });
     console.error('Update salary structure error:', error);
     res.status(500).json({ success: false, message: 'Failed to update salary structure' });
   }
@@ -115,6 +128,7 @@ router.delete('/salary-structures/:id', async (req, res) => {
     await query('UPDATE salary_structures SET is_active = false WHERE id = $1', [req.params.id]);
     res.json({ success: true, message: 'Salary structure deactivated' });
   } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'settings' });
     console.error('Delete salary structure error:', error);
     res.status(500).json({ success: false, message: 'Failed to delete salary structure' });
   }
@@ -132,24 +146,27 @@ router.patch('/users/:id/toggle', async (req, res) => {
       return res.status(400).json({ success: false, message: 'You cannot deactivate your own account' });
     }
 
-    const result = await query(
-      `UPDATE users SET is_active = NOT is_active, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $1
-       RETURNING id, email, full_name, role, is_active`,
-      [req.params.id]
-    );
-
-    if (result.rows.length === 0) {
+    // First get current status
+    const current = await query('SELECT is_active FROM users WHERE id = $1', [req.params.id]);
+    if (current.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    const user = result.rows[0];
+    const newActive = !current.rows[0].is_active;
+    await query(
+      `UPDATE users SET is_active = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+      [newActive, req.params.id]
+    );
+
+    const updated = await query('SELECT id, email, full_name, role, is_active FROM users WHERE id = $1', [req.params.id]);
+    const user = updated.rows[0];
     res.json({
       success: true,
       data: user,
       message: `User ${user.is_active ? 'activated' : 'deactivated'} successfully`
     });
   } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'settings' });
     console.error('Toggle user error:', error);
     res.status(500).json({ success: false, message: 'Failed to toggle user status' });
   }
@@ -158,24 +175,26 @@ router.patch('/users/:id/toggle', async (req, res) => {
 // PUT /api/settings/users/:id — update user role/details
 router.put('/users/:id', async (req, res) => {
   try {
-    const { full_name, role, phone } = req.body;
+    const { full_name, role, phone, permissions } = req.body;
+    let updateQuery = `UPDATE users SET full_name = COALESCE($1, full_name), role = COALESCE($2, role), phone = COALESCE($3, phone), updated_at = CURRENT_TIMESTAMP`;
+    const queryParams = [full_name, role, phone, req.params.id];
 
-    const result = await query(
-      `UPDATE users SET
-         full_name = COALESCE($1, full_name),
-         role = COALESCE($2, role),
-         phone = COALESCE($3, phone),
-         updated_at = CURRENT_TIMESTAMP
-       WHERE id = $4
-       RETURNING id, email, full_name, role, phone, is_active`,
-      [full_name, role, phone, req.params.id]
-    );
+    if (permissions !== undefined) {
+      updateQuery += `, permissions = $5`;
+      queryParams.push(JSON.stringify(permissions));
+    }
+    updateQuery += ` WHERE id = $4`;
 
-    if (result.rows.length === 0) {
+    const result = await query(updateQuery, queryParams);
+
+    if (result.rowCount === 0) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
-    res.json({ success: true, data: result.rows[0], message: 'User updated' });
+
+    const updated = await query('SELECT id, email, full_name, role, phone, is_active, permissions FROM users WHERE id = $1', [req.params.id]);
+    res.json({ success: true, data: updated.rows[0], message: 'User updated' });
   } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'settings' });
     console.error('Update user error:', error);
     res.status(500).json({ success: false, message: 'Failed to update user' });
   }
@@ -197,6 +216,7 @@ router.post('/users/:id/reset-password', async (req, res) => {
 
     res.json({ success: true, message: 'Password reset successfully' });
   } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'settings' });
     console.error('Reset password error:', error);
     res.status(500).json({ success: false, message: 'Failed to reset password' });
   }
@@ -218,6 +238,7 @@ router.get('/system/:key', async (req, res) => {
     }
     res.json({ success: true, data: result.rows[0].setting_value });
   } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'settings' });
     console.error('Fetch system setting error:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch setting' });
   }
@@ -242,8 +263,158 @@ router.put('/system/:key', async (req, res) => {
 
     res.json({ success: true, data: result.rows[0].setting_value, message: 'Setting updated successfully' });
   } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'settings' });
     console.error('Update system setting error:', error);
     res.status(500).json({ success: false, message: 'Failed to update setting' });
+  }
+});
+
+// POST /api/settings/system/agency_logo
+router.post('/system/agency_logo', upload.single('logo'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No image uploaded' });
+    }
+    
+    const logoUrl = `/uploads/${req.file.filename}`;
+    
+    await query(
+      `INSERT INTO system_settings (setting_key, setting_value)
+       VALUES ($1, $2)
+       ON CONFLICT (setting_key) 
+       DO UPDATE SET setting_value = EXCLUDED.setting_value, updated_at = CURRENT_TIMESTAMP`,
+      ['agency_logo_url', logoUrl]
+    );
+
+    res.json({ success: true, data: { logo_url: logoUrl }, message: 'Logo updated successfully' });
+  } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'settings' });
+    console.error('Update logo error:', error);
+    res.status(500).json({ success: false, message: 'Failed to update logo' });
+  }
+});
+
+// DELETE /api/settings/system/agency_logo
+router.delete('/system/agency_logo', async (req, res) => {
+  try {
+    await query(`DELETE FROM system_settings WHERE setting_key = 'agency_logo_url'`);
+    res.json({ success: true, message: 'Logo removed' });
+  } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'settings' });
+    res.status(500).json({ success: false, message: 'Failed to remove logo' });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+//  EXPENSE CATEGORIES
+// ═══════════════════════════════════════════════════════════════════
+
+// GET /api/settings/expense-categories (Admins can view all including inactive if needed, but we'll return all)
+router.get('/expense-categories', async (req, res) => {
+  try {
+    const result = await query('SELECT * FROM expense_categories ORDER BY is_active DESC, name ASC');
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'settings' });
+    console.error('Fetch expense categories error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch expense categories' });
+  }
+});
+
+// POST /api/settings/expense-categories
+router.post('/expense-categories', async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ success: false, message: 'Category name is required' });
+
+    const result = await query(
+      `INSERT INTO expense_categories (name) VALUES ($1) RETURNING *`,
+      [name]
+    );
+    res.status(201).json({ success: true, data: result.rows[0], message: 'Expense category created' });
+  } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'settings' });
+    if (error.message.includes('UNIQUE constraint failed')) {
+      return res.status(409).json({ success: false, message: 'Category already exists' });
+    }
+    console.error('Create expense category error:', error);
+    res.status(500).json({ success: false, message: 'Failed to create expense category' });
+  }
+});
+
+// PUT /api/settings/expense-categories/:id
+router.put('/expense-categories/:id', async (req, res) => {
+  try {
+    const { name, is_active } = req.body;
+    const result = await query(
+      `UPDATE expense_categories SET name = COALESCE($1, name), is_active = COALESCE($2, is_active) WHERE id = $3 RETURNING *`,
+      [name, is_active, req.params.id]
+    );
+    if (result.rowCount === 0) return res.status(404).json({ success: false, message: 'Category not found' });
+    res.json({ success: true, data: result.rows[0], message: 'Category updated' });
+  } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'settings' });
+    if (error.message.includes('UNIQUE constraint failed')) {
+      return res.status(409).json({ success: false, message: 'Category already exists' });
+    }
+    console.error('Update expense category error:', error);
+    res.status(500).json({ success: false, message: 'Failed to update category' });
+  }
+});
+// POST /api/settings/system/agency_logo
+router.post('/system/agency_logo', upload.single('logo'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No file uploaded' });
+    }
+    const logoUrl = `/uploads/${req.file.filename}`;
+    
+    // Fetch current agency settings
+    const currentSettingsRes = await query(`SELECT value FROM system_settings WHERE key = 'agency_settings'`);
+    let agencySettings = {};
+    if (currentSettingsRes.rows.length > 0) {
+      try {
+        agencySettings = JSON.parse(currentSettingsRes.rows[0].value);
+      } catch(e) {
+    logError(e, typeof req !== 'undefined' ? req : {}, { feature: 'settings' });}
+    }
+    
+    agencySettings.agency_logo_url = logoUrl;
+    
+    // Update or Insert
+    if (currentSettingsRes.rows.length > 0) {
+      await query(`UPDATE system_settings SET value = $1, updated_at = CURRENT_TIMESTAMP WHERE key = 'agency_settings'`, [JSON.stringify(agencySettings)]);
+    } else {
+      await query(`INSERT INTO system_settings (key, value) VALUES ('agency_settings', $1)`, [JSON.stringify(agencySettings)]);
+    }
+    
+    res.json({ success: true, message: 'Logo uploaded successfully', logo_url: logoUrl });
+  } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'settings' });
+    console.error('Logo upload error:', error);
+    res.status(500).json({ success: false, message: 'Failed to upload logo' });
+  }
+});
+
+// DELETE /api/settings/system/agency_logo
+router.delete('/system/agency_logo', async (req, res) => {
+  try {
+    const currentSettingsRes = await query(`SELECT value FROM system_settings WHERE key = 'agency_settings'`);
+    if (currentSettingsRes.rows.length > 0) {
+      let agencySettings = {};
+      try {
+        agencySettings = JSON.parse(currentSettingsRes.rows[0].value);
+      } catch(e) {
+    logError(e, typeof req !== 'undefined' ? req : {}, { feature: 'settings' });}
+      
+      agencySettings.agency_logo_url = '';
+      await query(`UPDATE system_settings SET value = $1, updated_at = CURRENT_TIMESTAMP WHERE key = 'agency_settings'`, [JSON.stringify(agencySettings)]);
+    }
+    res.json({ success: true, message: 'Logo removed successfully' });
+  } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'settings' });
+    console.error('Logo remove error:', error);
+    res.status(500).json({ success: false, message: 'Failed to remove logo' });
   }
 });
 

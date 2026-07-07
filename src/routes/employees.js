@@ -1,14 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const { query } = require('../database/connection');
-const { authMiddleware, requireRole } = require('../middleware/auth');
+const { authMiddleware, requirePermission } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validators');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
 // Ensure uploads directory exists
-const uploadDir = path.join(process.cwd(), 'uploads', 'docs');
+const baseUploadPath = process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads');
+const uploadDir = path.join(baseUploadPath, 'docs');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
@@ -27,16 +28,17 @@ const upload = multer({
   storage: storage,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
   fileFilter: (req, file, cb) => {
-    if (file.mimetype === 'application/pdf' || file.mimetype.startsWith('image/')) {
+    const allowedMimes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
+    if (allowedMimes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Only PDF and Image files are allowed'));
+      cb(new Error('Invalid file type. Only PDF, JPG, PNG, WEBP, and XLSX are allowed.'));
     }
   }
 });
 
 router.use(authMiddleware);
-router.use(requireRole('admin', 'manager'));
+router.use(requirePermission('manage_employees'));
 
 // GET /api/employees
 router.get('/', async (req, res) => {
@@ -47,7 +49,7 @@ router.get('/', async (req, res) => {
     let pc = 1;
 
     if (search) {
-      conditions.push(`(e.full_name ILIKE $${pc} OR e.employee_id ILIKE $${pc} OR e.phone ILIKE $${pc})`);
+      conditions.push(`(e.full_name LIKE $${pc} OR e.employee_id LIKE $${pc} OR e.phone LIKE $${pc})`);
       params.push(`%${search}%`); pc++;
     }
     if (is_active !== undefined) {
@@ -64,23 +66,19 @@ router.get('/', async (req, res) => {
 
     const result = await query(
       `SELECT e.*, 
-        s.base_salary, s.dearness_allowance, s.house_rent_allowance, s.pf_percentage,
+        ss.base_salary, ss.dearness_allowance, ss.house_rent_allowance, ss.pf_percentage,
         c.name as client_name,
         ss.name as salary_structure_name
        FROM employees e
        LEFT JOIN clients c ON e.assigned_client_id = c.id
        LEFT JOIN salary_structures ss ON e.salary_structure_id = ss.id
-       LEFT JOIN LATERAL (
-         SELECT base_salary, dearness_allowance, house_rent_allowance, pf_percentage 
-         FROM salary_structures WHERE id = e.salary_structure_id
-       ) s ON true
        ${where}
        ORDER BY e.is_active DESC, e.full_name ASC
        LIMIT $${pc} OFFSET $${pc + 1}`,
       [...params, parseInt(limit), offset]
     );
 
-    const countResult = await query(`SELECT COUNT(*) FROM employees e ${where}`, params);
+    const countResult = await query(`SELECT COUNT(*) AS count FROM employees e ${where}`, params);
 
     res.json({
       success: true,
@@ -88,6 +86,7 @@ router.get('/', async (req, res) => {
       pagination: { total: parseInt(countResult.rows[0].count), page: parseInt(page), limit: parseInt(limit) }
     });
   } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'employees' });
     console.error('Get employees error:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch employees' });
   }
@@ -110,6 +109,7 @@ router.get('/:id', async (req, res) => {
     }
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'employees' });
     res.status(500).json({ success: false, message: 'Failed to fetch employee' });
   }
 });
@@ -128,6 +128,7 @@ router.post('/', validate(schemas.createEmployee), async (req, res) => {
 
     // Generate employee ID using a collision-resistant approach
     const crypto = require('crypto');
+const { logError } = require('../utils/errorLogger');
     const randomHex = crypto.randomBytes(3).toString('hex').toUpperCase();
     const employee_id = `EMP-${randomHex}`;
 
@@ -145,6 +146,7 @@ router.post('/', validate(schemas.createEmployee), async (req, res) => {
 
     res.status(201).json({ success: true, data: result.rows[0], message: 'Employee created successfully' });
   } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'employees' });
     console.error('Create employee error:', error);
     res.status(500).json({ success: false, message: 'Failed to create employee' });
   }
@@ -158,25 +160,33 @@ router.put('/:id', validate(schemas.updateEmployee), async (req, res) => {
       date_of_joining, designation, salary_structure_id, assigned_client_id,
       emergency_contact_name, emergency_contact_phone, notes, is_active } = req.body;
 
+    // Coerce is_active to boolean (SQLite returns 0/1 which round-trips through the form)
+    const isActiveBool = is_active !== undefined ? Boolean(is_active) : true;
+
     const result = await query(
       `UPDATE employees SET full_name=$1, phone=$2, email=$3, date_of_birth=$4, address=$5, city=$6,
         aadhar_number=$7, pan_number=$8, bank_account_number=$9, bank_ifsc_code=$10, bank_name=$11,
         bank_account_holder_name=$12, date_of_joining=$13, designation=$14, salary_structure_id=$15,
         assigned_client_id=$16, emergency_contact_name=$17, emergency_contact_phone=$18, notes=$19,
         is_active=$20, updated_at=CURRENT_TIMESTAMP
-       WHERE id=$21 RETURNING *`,
+       WHERE id=$21`,
       [full_name, phone, email, date_of_birth || null, address, city, aadhar_number, pan_number,
         bank_account_number, bank_ifsc_code, bank_name, bank_account_holder_name,
         date_of_joining, designation, salary_structure_id || null, assigned_client_id || null,
-        emergency_contact_name, emergency_contact_phone, notes, is_active !== undefined ? is_active : true,
+        emergency_contact_name, emergency_contact_phone, notes, isActiveBool,
         req.params.id]
     );
 
-    if (result.rows.length === 0) {
+    if (result.rowCount === 0) {
       return res.status(404).json({ success: false, message: 'Employee not found' });
     }
-    res.json({ success: true, data: result.rows[0], message: 'Employee updated successfully' });
+
+    // Re-fetch the updated employee (RETURNING * is stripped by the SQLite adapter)
+    const updated = await query('SELECT * FROM employees WHERE id = $1', [req.params.id]);
+    res.json({ success: true, data: updated.rows[0], message: 'Employee updated successfully' });
   } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'employees' });
+    console.error('Update employee error:', error);
     res.status(500).json({ success: false, message: 'Failed to update employee' });
   }
 });
@@ -185,15 +195,33 @@ router.put('/:id', validate(schemas.updateEmployee), async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const result = await query(
-      'UPDATE employees SET is_active = false, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING id',
+      'UPDATE employees SET is_active = false, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
       [req.params.id]
     );
-    if (result.rows.length === 0) {
+    if (result.rowCount === 0) {
       return res.status(404).json({ success: false, message: 'Employee not found' });
     }
     res.json({ success: true, message: 'Employee deactivated successfully' });
   } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'employees' });
     res.status(500).json({ success: false, message: 'Failed to deactivate employee' });
+  }
+});
+
+// DELETE /api/employees/:id/hard (hard delete)
+router.delete('/:id/hard', async (req, res) => {
+  try {
+    const result = await query('DELETE FROM employees WHERE id = $1', [req.params.id]);
+    if (result.rowCount === 0) {
+      return res.status(404).json({ success: false, message: 'Employee not found' });
+    }
+    res.json({ success: true, message: 'Employee permanently deleted' });
+  } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'employees' });
+    if (error.code === 'SQLITE_CONSTRAINT_FOREIGNKEY' || (error.message && error.message.includes('FOREIGN KEY'))) {
+      return res.status(400).json({ success: false, message: 'Cannot delete employee: linked payroll or attendance records exist. Please delete them first.' });
+    }
+    res.status(500).json({ success: false, message: 'Failed to permanently delete employee' });
   }
 });
 
@@ -203,6 +231,7 @@ router.get('/meta/salary-structures', async (req, res) => {
     const result = await query('SELECT * FROM salary_structures WHERE is_active = true ORDER BY base_salary ASC');
     res.json({ success: true, data: result.rows });
   } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'employees' });
     res.status(500).json({ success: false, message: 'Failed to fetch salary structures' });
   }
 });
@@ -221,6 +250,7 @@ router.post('/:id/upload-doc', upload.single('document'), async (req, res) => {
 
     res.json({ success: true, message: 'Document uploaded successfully', data: result.rows[0] });
   } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'employees' });
     console.error('Upload document error:', error);
     res.status(500).json({ success: false, message: error.message || 'Failed to upload document' });
   }
@@ -235,6 +265,7 @@ router.get('/:id/docs', async (req, res) => {
     );
     res.json({ success: true, data: result.rows });
   } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'employees' });
     res.status(500).json({ success: false, message: 'Failed to fetch documents' });
   }
 });

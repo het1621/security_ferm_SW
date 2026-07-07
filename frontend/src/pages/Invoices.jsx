@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react';
-import { FileText, Plus, Search, Download, CreditCard, Clock, X, Mail, Trash2 } from 'lucide-react';
+import { FileText, Plus, Search, Download, CreditCard, Clock, X, Mail, Trash2, Zap, Edit } from 'lucide-react';
 import api from '../services/api';
 import { format } from 'date-fns';
-import { jsPDF } from 'jspdf';
 import Pagination from '../components/Pagination';
 import TableSkeleton from '../components/TableSkeleton';
+import EventInvoiceModal from '../components/EventInvoiceModal';
+import EditInvoiceModal from '../components/EditInvoiceModal';
 
 export default function Invoices() {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isEventOpen, setIsEventOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [clients, setClients] = useState([]);
@@ -20,11 +23,11 @@ export default function Invoices() {
 
   const [invoiceForm, setInvoiceForm] = useState({
     client_id: '', billing_period_start: '', billing_period_end: '',
-    tax_rate: '18', discount_amount: '0', notes: ''
+    tax_type: 'none', is_rcm_applicable: false, discount_amount: '0', notes: ''
   });
 
   const [paymentForm, setPaymentForm] = useState({
-    amount_paid: '', payment_method: 'bank_transfer', payment_date: format(new Date(), 'yyyy-MM-dd'),
+    amount_paid: '', tds_deducted: '0', payment_method: 'bank_transfer', payment_date: format(new Date(), 'yyyy-MM-dd'),
     transaction_reference: '', notes: ''
   });
 
@@ -54,7 +57,7 @@ export default function Invoices() {
 
   const openCreateModal = () => {
     fetchClients();
-    setInvoiceForm({ client_id: '', billing_period_start: '', billing_period_end: '', tax_rate: '18', discount_amount: '0', notes: '' });
+    setInvoiceForm({ client_id: '', billing_period_start: '', billing_period_end: '', tax_type: 'none', is_rcm_applicable: false, discount_amount: '0', notes: '' });
     setError('');
     setIsCreateOpen(true);
   };
@@ -66,7 +69,6 @@ export default function Invoices() {
     try {
       await api.post('/invoices', {
         ...invoiceForm,
-        tax_rate: parseFloat(invoiceForm.tax_rate) || 0,
         discount_amount: parseFloat(invoiceForm.discount_amount) || 0,
       });
       setIsCreateOpen(false);
@@ -116,15 +118,15 @@ export default function Invoices() {
     }
   };
 
-  const openPaymentModal = (invoice) => {
-    setSelectedInvoice(invoice);
-    const remaining = parseFloat(invoice.final_amount) - parseFloat(invoice.payment_received || 0);
+  const openPaymentModal = (inv) => {
+    setSelectedInvoice(inv);
+    const remaining = parseFloat(inv.final_amount) - parseFloat(inv.payment_received || 0) - parseFloat(inv.tds_deducted || 0);
     setPaymentForm({
-      amount_paid: remaining.toFixed(2),
+      amount_paid: remaining > 0 ? remaining.toFixed(2) : '',
+      tds_deducted: '0',
       payment_method: 'bank_transfer',
       payment_date: format(new Date(), 'yyyy-MM-dd'),
-      transaction_reference: '',
-      notes: ''
+      transaction_reference: '', notes: ''
     });
     setError('');
     setIsPaymentOpen(true);
@@ -176,25 +178,16 @@ export default function Invoices() {
     }
   };
 
-  const handleDownloadPDF = async (inv) => {
+  const handleDownloadPDF = (inv) => {
     try {
-      setLoading(true);
-      const response = await api.get(`/invoices/${inv.id}/pdf`, {
-        responseType: 'blob' // Important for file downloads
-      });
-      
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `Invoice-${inv.invoice_number}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      const token = localStorage.getItem('token');
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const url = `${baseUrl}/invoices/${inv.id}/pdf?token=${token}`;
+      // window.open triggers Electron's setWindowOpenHandler -> downloadURL
+      window.open(url, '_blank');
     } catch (err) {
       console.error(err);
-      alert('Failed to download PDF from server');
-    } finally {
-      setLoading(false);
+      alert('Failed to trigger PDF download');
     }
   };
 
@@ -211,6 +204,11 @@ export default function Invoices() {
           <p className="text-slate-500 text-sm mt-1">Manage client billing, tax calculations, and payments.</p>
         </div>
         <div className="flex gap-2">
+          <button onClick={() => setIsEventOpen(true)}
+            className="bg-amber-100 hover:bg-amber-200 text-amber-800 px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-amber-300 flex items-center gap-2">
+            <Zap className="w-4 h-4" />
+            Event Invoice
+          </button>
           <button onClick={handleAutoGenerate} disabled={submitting}
             className="bg-slate-100 hover:bg-slate-200 text-slate-800 px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-slate-300 disabled:opacity-50">
             Auto-Generate Monthly
@@ -218,7 +216,7 @@ export default function Invoices() {
           <button onClick={openCreateModal}
             className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center gap-2">
             <Plus className="w-4 h-4" />
-            Create Invoice
+            Monthly Invoice
           </button>
         </div>
       </div>
@@ -288,6 +286,10 @@ export default function Invoices() {
                           className="p-1.5 text-slate-500 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors" title="Email Invoice">
                           <Mail className="w-4 h-4" />
                         </button>
+                        <button onClick={() => { setSelectedInvoice(inv); setIsEditOpen(true); }}
+                          className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors" title="Edit Invoice">
+                          <Edit className="w-4 h-4" />
+                        </button>
                         {inv.status !== 'paid' && inv.status !== 'cancelled' && (
                           <button onClick={() => openPaymentModal(inv)}
                             className="p-1.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Record Payment">
@@ -341,13 +343,23 @@ export default function Invoices() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">GST Rate (%)</label>
-                    <input type="number" min="0" step="0.01" value={invoiceForm.tax_rate} onChange={(e) => setInvoiceForm({ ...invoiceForm, tax_rate: e.target.value })} className={inputCls} />
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Tax Configuration</label>
+                    <select value={invoiceForm.tax_type} onChange={(e) => setInvoiceForm({ ...invoiceForm, tax_type: e.target.value })} className={inputCls}>
+                      <option value="none">No GST (0%)</option>
+                      <option value="cgst_sgst">Intra-State (CGST 9% + SGST 9%)</option>
+                      <option value="igst">Inter-State (IGST 18%)</option>
+                    </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Discount (₹)</label>
                     <input type="number" min="0" step="0.01" value={invoiceForm.discount_amount} onChange={(e) => setInvoiceForm({ ...invoiceForm, discount_amount: e.target.value })} className={inputCls} />
                   </div>
+                </div>
+                <div className="flex items-center p-3 bg-amber-50 rounded-lg border border-amber-100">
+                  <input type="checkbox" id="monthly_rcm" checked={invoiceForm.is_rcm_applicable} onChange={e => setInvoiceForm({...invoiceForm, is_rcm_applicable: e.target.checked})} className="h-4 w-4 text-amber-600 focus:ring-amber-500 rounded border-amber-300" />
+                  <label htmlFor="monthly_rcm" className="ml-2 block text-sm font-medium text-amber-900 cursor-pointer">
+                    Apply RCM (Reverse Charge Mechanism)
+                  </label>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
@@ -368,6 +380,7 @@ export default function Invoices() {
       {/* Record Payment Modal */}
       {isPaymentOpen && selectedInvoice && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fade-in">
+          {/* ... existing payment modal ... */}
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-slide-up">
             <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
               <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
@@ -382,9 +395,15 @@ export default function Invoices() {
                 <p className="text-slate-500 mt-1">Total: ₹{parseFloat(selectedInvoice.final_amount).toLocaleString('en-IN')} | Received: ₹{parseFloat(selectedInvoice.payment_received || 0).toLocaleString('en-IN')}</p>
               </div>
               <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Amount *</label>
-                  <input required type="number" min="0.01" step="0.01" value={paymentForm.amount_paid} onChange={(e) => setPaymentForm({ ...paymentForm, amount_paid: e.target.value })} className={inputCls} />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Amount Received *</label>
+                    <input required type="number" min="0.01" step="0.01" value={paymentForm.amount_paid} onChange={(e) => setPaymentForm({ ...paymentForm, amount_paid: e.target.value })} className={inputCls} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">TDS Deducted (₹)</label>
+                    <input type="number" min="0" step="0.01" value={paymentForm.tds_deducted} onChange={(e) => setPaymentForm({ ...paymentForm, tds_deducted: e.target.value })} className={inputCls} />
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -417,6 +436,27 @@ export default function Invoices() {
           </div>
         </div>
       )}
+
+      {/* Ad-Hoc Event Invoice Modal */}
+      <EventInvoiceModal 
+        isOpen={isEventOpen} 
+        onClose={() => setIsEventOpen(false)} 
+        onSuccess={() => {
+          setIsEventOpen(false);
+          fetchInvoices();
+        }} 
+      />
+
+      {/* Edit Invoice Modal */}
+      <EditInvoiceModal 
+        isOpen={isEditOpen}
+        onClose={() => setIsEditOpen(false)}
+        invoice={selectedInvoice}
+        onSuccess={() => {
+          setIsEditOpen(false);
+          fetchInvoices();
+        }}
+      />
     </div>
   );
 }

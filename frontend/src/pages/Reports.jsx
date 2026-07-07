@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import DrillDownModal from '../components/DrillDownModal';
 import { PieChart as PieChartIcon, TrendingUp, TrendingDown, Download, IndianRupee, Printer, Calendar, FileSpreadsheet, AlertTriangle, CheckCircle, Clock, Users, Eye, EyeOff, Activity, Zap, Target, Shield, Info, RotateCw, Banknote, Receipt, Wallet, Percent, Briefcase } from 'lucide-react';
 import api from '../services/api';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList, LineChart, Line, ReferenceLine, ComposedChart, Area } from 'recharts';
 import * as XLSX from 'xlsx';
-
 const COLORS = ['#4a90e2', '#f5a623', '#50e3c2', '#ef4444', '#8b5cf6', '#ec4899'];
 const BAR_COLORS = ['#3b4d6e', '#2c7a7b', '#68b36b', '#f6ad55', '#fc8181'];
 
@@ -50,7 +50,7 @@ const FlipCard = ({ children, infoTitle, infoText, infoIcon: InfoIcon, container
         </div>
 
         {/* Back */}
-        <div className="absolute inset-0 backface-hidden w-full h-full rotate-y-180 bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col justify-center items-center text-center shadow-inner z-0 overflow-y-auto no-print">
+        <div className="absolute inset-0 backface-hidden w-full h-full rotate-y-180 bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col justify-center items-center text-center shadow-inner z-0 overflow-y-auto no-print flex-1 min-h-0">
           <button 
             onClick={() => setIsFlipped(false)}
             className="absolute top-2 right-2 p-1.5 bg-slate-200 hover:bg-slate-300 text-slate-600 rounded-full transition-colors z-20"
@@ -83,10 +83,175 @@ export default function Reports() {
   const [agingData, setAgingData] = useState(null);
   const [bizData, setBizData] = useState(null);
   const [costPerGuardData, setCostPerGuardData] = useState(null);
+  const [tdsData, setTdsData] = useState([]);
   const [dateRange, setDateRange] = useState({
     from_date: `${new Date().getFullYear()}-01-01`,
     to_date: new Date().toISOString().split('T')[0]
   });
+
+  const [drillDownModal, setDrillDownModal] = useState({
+    isOpen: false,
+    title: '',
+    data: [],
+    columns: [],
+    type: ''
+  });
+
+  const handleKpiClick = async (type) => {
+    try {
+      const params = new URLSearchParams();
+      if (dateRange.from_date) params.append('from_date', dateRange.from_date);
+      if (dateRange.to_date) params.append('to_date', dateRange.to_date);
+      const queryStr = params.toString() ? `?${params.toString()}` : '';
+
+      if (type === 'billed') {
+        const res = await api.get(`/reports/drilldown/billed${queryStr}`);
+        setDrillDownModal({
+          isOpen: true,
+          title: 'Total Billed Details',
+          type: 'billed',
+          data: res.data || [],
+          columns: [
+            { key: 'invoice_number', label: 'Invoice #' },
+            { key: 'invoice_date', label: 'Date', format: d => new Date(d).toLocaleDateString() },
+            { key: 'client_name', label: 'Client' },
+            { key: 'status', label: 'Status' },
+            { key: 'final_amount', label: 'Amount', format: v => `₹${Number(v || 0).toLocaleString()}` }
+          ]
+        });
+      } else if (type === 'collected') {
+        const res = await api.get(`/reports/drilldown/collected${queryStr}`);
+        setDrillDownModal({
+          isOpen: true,
+          title: 'Total Collected Details',
+          type: 'collected',
+          data: res.data || [],
+          columns: [
+            { key: 'payment_date', label: 'Date', format: d => new Date(d).toLocaleDateString() },
+            { key: 'invoice_number', label: 'Invoice #' },
+            { key: 'client_name', label: 'Client' },
+            { key: 'payment_method', label: 'Method' },
+            { key: 'amount_paid', label: 'Amount', format: v => `₹${Number(v || 0).toLocaleString()}` }
+          ]
+        });
+      } else if (type === 'pending') {
+        const res = await api.get(`/reports/drilldown/pending${queryStr}`);
+        setDrillDownModal({
+          isOpen: true,
+          title: 'Pending Due Details',
+          type: 'pending',
+          data: res.data || [],
+          columns: [
+            { key: 'invoice_number', label: 'Invoice #' },
+            { key: 'due_date', label: 'Due Date', format: d => new Date(d).toLocaleDateString() },
+            { key: 'client_name', label: 'Client' },
+            { key: 'final_amount', label: 'Total Amount', format: v => `₹${Number(v || 0).toLocaleString()}` },
+            { key: 'payment_due', label: 'Pending Due', format: v => `₹${Number(v || 0).toLocaleString()}` }
+          ]
+        });
+      }
+    } catch (err) {
+      console.error('Failed to fetch drill down data', err);
+    }
+  };
+
+  const handleExpensePieClick = async (entry, index, event) => {
+    // Recharts passes (entry, index, event) to Cell onClick
+    const e = event || index;
+    if (e && e.stopPropagation) e.stopPropagation();
+    
+    if (!entry || !entry.name) return;
+    try {
+      const params = new URLSearchParams();
+      if (dateRange.from_date) params.append('from_date', dateRange.from_date);
+      if (dateRange.to_date) params.append('to_date', dateRange.to_date);
+      params.append('category', entry.name);
+      const queryStr = `?${params.toString()}`;
+
+      const res = await api.get(`/reports/drilldown/expenses${queryStr}`);
+      setDrillDownModal({
+        isOpen: true,
+        title: `Expenses: ${entry.name}`,
+        type: 'expenses',
+        data: res.data || [],
+        columns: [
+          { key: 'expense_date', label: 'Date', format: d => new Date(d).toLocaleDateString() },
+          { key: 'vendor_name', label: 'Vendor' },
+          { key: 'description', label: 'Description' },
+          { key: 'status', label: 'Status' },
+          { key: 'amount', label: 'Amount', format: v => `₹${Number(v || 0).toLocaleString()}` }
+        ]
+      });
+    } catch (err) {
+      console.error('Failed to fetch expense drill down data', err);
+    }
+  };
+
+  const handleRevenuePieClick = async (entry, index, event) => {
+    const e = event || index;
+    if (e && e.stopPropagation) e.stopPropagation();
+    
+    if (!entry || !entry.name) return;
+    try {
+      const params = new URLSearchParams();
+      if (dateRange.from_date) params.append('from_date', dateRange.from_date);
+      if (dateRange.to_date) params.append('to_date', dateRange.to_date);
+      params.append('client_name', entry.name);
+      const queryStr = `?${params.toString()}`;
+
+      const res = await api.get(`/reports/drilldown/revenue${queryStr}`);
+      setDrillDownModal({
+        isOpen: true,
+        title: `Revenue: ${entry.name}`,
+        type: 'revenue',
+        data: res.data || [],
+        columns: [
+          { key: 'invoice_number', label: 'Invoice #' },
+          { key: 'invoice_date', label: 'Date', format: d => new Date(d).toLocaleDateString() },
+          { key: 'client_name', label: 'Client' },
+          { key: 'final_amount', label: 'Billed', format: v => `₹${Number(v || 0).toLocaleString()}` },
+          { key: 'payment_received', label: 'Received', format: v => `₹${Number(v || 0).toLocaleString()}` }
+        ]
+      });
+    } catch (err) {
+      console.error('Failed to fetch revenue drill down data', err);
+    }
+  };
+
+  const handleMonthlyChartClick = async (entry, event) => {
+    // Recharts passes (state, event) to ComposedChart onClick
+    if (event && event.stopPropagation) event.stopPropagation();
+    else if (entry && entry.stopPropagation) entry.stopPropagation();
+
+    if (!entry || !entry.activePayload || !entry.activePayload.length) return;
+    const monthData = entry.activePayload[0].payload;
+    if (!monthData || !monthData.month_num) return;
+    
+    try {
+      const year = new Date(dateRange.from_date).getFullYear();
+      const res = await api.get(`/reports/drilldown/monthly?year=${year}&month=${monthData.month_num}`);
+      
+      const combined = [
+        ...(res.data?.billed || []),
+        ...(res.data?.collected || [])
+      ].sort((a, b) => new Date(b.invoice_date || b.payment_date) - new Date(a.invoice_date || a.payment_date));
+
+      setDrillDownModal({
+        isOpen: true,
+        title: `Monthly Details: ${monthData.month}`,
+        type: 'monthly',
+        data: combined,
+        columns: [
+          { key: 'type', label: 'Type' },
+          { key: 'invoice_number', label: 'Invoice #' },
+          { key: 'client_name', label: 'Client' },
+          { key: 'final_amount', label: 'Amount', format: v => `₹${Number(v || 0).toLocaleString()}` }
+        ]
+      });
+    } catch (err) {
+      console.error('Failed to fetch monthly drill down data', err);
+    }
+  };
 
   const fetchReports = async () => {
     try {
@@ -97,12 +262,14 @@ export default function Reports() {
       const queryStr = params.toString() ? `?${params.toString()}` : '';
 
       // Only fetch basic reports initially to improve load time
-      const [expenseRes, plRes] = await Promise.all([
+      const [expenseRes, plRes, tdsRes] = await Promise.all([
         api.get(`/reports/expense-summary${queryStr}`),
-        api.get(`/reports/profit-loss${queryStr}`)
+        api.get(`/reports/profit-loss${queryStr}`),
+        api.get(`/reports/tds${queryStr}`)
       ]);
       setExpenseData(expenseRes.data?.by_category || []);
       setPlData(plRes.data);
+      if (tdsRes.data?.success) setTdsData(tdsRes.data.data);
 
       const year = new Date(dateRange.from_date).getFullYear();
       const [trendRes, agingRes] = await Promise.all([
@@ -153,8 +320,38 @@ export default function Reports() {
     }
   }, [showAdvanced]);
 
-  const handleExport = () => {
-    window.print();
+  const [pdfGenerating, setPdfGenerating] = useState(false);
+
+  const handleExport = async () => {
+    setPdfGenerating(true);
+    try {
+      // Use Electron's native printToPDF (renders SVG charts perfectly)
+      if (window.electronAPI && window.electronAPI.isElectron) {
+        const result = await window.electronAPI.printToPDF({ landscape: true });
+        if (result.success) {
+          const fileName = `Financial_Report_${dateRange.from_date}_to_${dateRange.to_date}.pdf`;
+          const saveResult = await window.electronAPI.saveFile({
+            buffer: result.buffer,
+            defaultName: fileName
+          });
+          if (saveResult.success) {
+            alert(`PDF saved to: ${saveResult.filePath}`);
+          } else if (!saveResult.canceled) {
+            alert('Failed to save PDF: ' + (saveResult.error || 'Unknown error'));
+          }
+        } else {
+          alert('Failed to generate PDF: ' + (result.error || 'Unknown error'));
+        }
+      } else {
+        // Fallback for non-Electron (dev mode)
+        window.print();
+      }
+    } catch (err) {
+      console.error('Failed to generate PDF', err);
+      alert('Failed to generate PDF document');
+    } finally {
+      setPdfGenerating(false);
+    }
   };
 
   const downloadRawData = (type) => {
@@ -211,7 +408,7 @@ export default function Reports() {
       XLSX.utils.book_append_sheet(wb, wsSummary, '📊 Summary');
 
       // ─── SHEET 2: REVENUE BY CLIENT ────────────────────────────────────
-      const revData = invRes.data.data || [];
+      const revData = invRes.data || [];
       const revRows = [
         ['REVENUE BY CLIENT', '', '', '', '', '', ''],
         [`Period: ${dateRange.from_date}  →  ${dateRange.to_date}`, '', '', '', '', '', ''],
@@ -446,11 +643,14 @@ export default function Reports() {
           <div className="flex items-center gap-2 border-l border-slate-200 pl-3">
             <button 
               onClick={handleExport} 
-              disabled={loading} 
+              disabled={loading || pdfGenerating} 
               className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-xl text-sm font-bold transition-colors shadow-sm flex items-center gap-2 disabled:opacity-50"
             >
-              <Printer className="w-4 h-4 text-slate-500" />
-              Print PDF
+              {pdfGenerating ? (
+                <><span className="w-4 h-4 border-2 border-slate-400 border-t-slate-700 rounded-full animate-spin"></span> Generating...</>
+              ) : (
+                <><Printer className="w-4 h-4 text-slate-500" /> Export PDF</>
+              )}
             </button>
             <select 
               onChange={(e) => { if(e.target.value) downloadRawData(e.target.value); e.target.value=''; }}
@@ -478,12 +678,35 @@ export default function Reports() {
 
       <style>{`
         @media print {
-          body * { visibility: hidden; }
-          #printable-dashboard, #printable-dashboard * { visibility: visible; }
-          #printable-dashboard { position: absolute; left: 0; top: 0; width: 100%; height: auto; padding: 0 !important; margin: 0 !important; }
-          .no-print { display: none !important; }
+          /* Hide everything except the reports content */
+          body > *:not(#root) { display: none !important; }
+          .no-print, nav, aside, header, footer { display: none !important; }
+          
+          /* Allow the entire page to expand infinitely for printing */
+          html, body, #root { 
+            height: auto !important; 
+            overflow: visible !important; 
+            background: white !important;
+          }
+          
+          /* Remove borders, shadows, backgrounds from the dashboard container */
+          #printable-dashboard {
+            border: none !important;
+            box-shadow: none !important;
+            background: white !important;
+            padding: 0 !important;
+            border-radius: 0 !important;
+          }
+          
+          /* Flatten 3D transforms for PDF */
+          .perspective-1000 { perspective: none !important; }
+          .transform-style-3d { transform-style: flat !important; }
+          .backface-hidden { backface-visibility: visible !important; }
+          .rotate-y-180 { display: none !important; }
+          
+          /* Page breaks */
           .print-break-inside-avoid { break-inside: avoid; page-break-inside: avoid; }
-          @page { size: landscape; margin: 10mm; }
+          @page { size: A4 landscape; margin: 5mm; }
         }
         .perspective-1000 { perspective: 1000px; }
         .transform-style-3d { transform-style: preserve-3d; }
@@ -539,7 +762,7 @@ export default function Reports() {
           </div>
 
           {plData && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 print:grid-cols-2 gap-x-12 gap-y-16 print:gap-y-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 print:grid-cols-1 gap-x-12 gap-y-16 print:gap-y-8">
               
               {/* Top Left: KPIs */}
               <div className="flex flex-col justify-center px-6 group print-break-inside-avoid">
@@ -579,7 +802,10 @@ export default function Reports() {
                     infoText="This is the total value of all invoices generated for clients during the selected period, regardless of whether they have been paid yet."
                     infoIcon={Receipt}
                   >
-                    <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 hover:bg-white hover:shadow-md transition-all h-full">
+                    <div 
+                      onClick={() => handleKpiClick('billed')}
+                      className="bg-slate-50 rounded-xl p-4 border border-slate-100 hover:bg-white hover:shadow-md transition-all h-full cursor-pointer"
+                    >
                       <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Total Billed</p>
                       <p className="text-xl font-black text-blue-700">₹{plData.total_billed.toLocaleString('en-IN')}</p>
                     </div>
@@ -591,7 +817,10 @@ export default function Reports() {
                     infoText="This represents the actual cash deposited in your bank from clients during the selected period. It is your realized revenue."
                     infoIcon={Banknote}
                   >
-                    <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 hover:bg-white hover:shadow-md transition-all h-full">
+                    <div 
+                      onClick={() => handleKpiClick('collected')}
+                      className="bg-slate-50 rounded-xl p-4 border border-slate-100 hover:bg-white hover:shadow-md transition-all h-full cursor-pointer"
+                    >
                       <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Total Collected</p>
                       <p className="text-xl font-black text-teal-700">₹{plData.revenue.toLocaleString('en-IN')}</p>
                     </div>
@@ -603,7 +832,10 @@ export default function Reports() {
                     infoText="The difference between what was billed and what was collected. This is the outstanding cash clients still owe you for this period."
                     infoIcon={Wallet}
                   >
-                    <div className="bg-amber-50/50 rounded-xl p-4 border border-amber-100 hover:bg-white hover:shadow-md transition-all h-full">
+                    <div 
+                      onClick={() => handleKpiClick('pending')}
+                      className="bg-amber-50/50 rounded-xl p-4 border border-amber-100 hover:bg-white hover:shadow-md transition-all h-full cursor-pointer"
+                    >
                       <p className="text-xs font-bold text-amber-600/70 uppercase tracking-wider mb-1">Pending Due</p>
                       <p className="text-xl font-black text-amber-700">₹{pendingPayments.toLocaleString('en-IN')}</p>
                     </div>
@@ -626,7 +858,7 @@ export default function Reports() {
 
                   {/* Net Profit */}
                   <FlipCard 
-                    containerClassName="col-span-1 md:col-span-2"
+                    containerClassName="col-span-1 md:col-span-2 print:col-span-full"
                     infoTitle="Net Profit" 
                     infoText="This is your final profit margin after deducting all operational costs, payroll, and taxes. A negative number indicates a loss."
                     infoIcon={TrendingUp}
@@ -649,7 +881,7 @@ export default function Reports() {
                 </div>
               </div>
 
-              {/* Top Right: Revenue Donut */}
+              {/* Top Row: Revenue Pie Chart */}
               <FlipCard
                 containerClassName="flex flex-col items-center hover:scale-[1.02] transition-transform duration-300 w-full h-full print-break-inside-avoid"
                 infoTitle="Revenue by Society"
@@ -669,16 +901,21 @@ export default function Reports() {
                       stroke="white"
                       strokeWidth={4}
                       isAnimationActive={true}
+                      onClick={handleRevenuePieClick}
+                      style={{ cursor: 'pointer' }}
                     >
                       {(plData.revenue_details || []).map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} className="hover:opacity-80 transition-opacity duration-300 cursor-pointer" />
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={COLORS[index % COLORS.length]} 
+                          className="hover:opacity-80 transition-opacity duration-300" 
+                        />
                       ))}
                     </Pie>
                     <RechartsTooltip formatter={(value) => `₹${parseFloat(value).toLocaleString('en-IN')}`} contentStyle={tooltipStyle} />
                   </PieChart>
                 </ResponsiveContainer>
               </FlipCard>
-
               {/* Bottom Left: Cost Breakdown */}
               <FlipCard
                 containerClassName="flex flex-col items-center group w-full h-full print-break-inside-avoid"
@@ -694,17 +931,28 @@ export default function Reports() {
                       <XAxis dataKey="name" tick={{ fill: '#475569', fontWeight: 500 }} axisLine={{stroke: '#cbd5e1'}} tickLine={false} />
                       <YAxis tick={{ fill: '#475569', fontWeight: 500 }} axisLine={{stroke: '#cbd5e1'}} tickLine={false} label={{ value: 'Amount (INR)', angle: -90, position: 'insideLeft', offset: -10, fill: '#64748b' }} />
                       <RechartsTooltip formatter={(value) => `₹${parseFloat(value).toLocaleString('en-IN')}`} cursor={{fill: '#f8fafc'}} contentStyle={tooltipStyle}/>
-                      <Bar dataKey="amount" radius={[6, 6, 0, 0]} maxBarSize={100} isAnimationActive={true} animationDuration={1500}>
+                      <Bar 
+                        dataKey="amount" 
+                        radius={[6, 6, 0, 0]} 
+                        maxBarSize={100} 
+                        isAnimationActive={true} 
+                        animationDuration={1500}
+                        onClick={handleExpensePieClick}
+                        style={{ cursor: 'pointer' }}
+                      >
                         <LabelList dataKey="amount" position="top" formatter={(value) => `₹${parseFloat(value).toLocaleString('en-IN')}`} style={{ fill: '#1e293b', fontWeight: '800' }} />
                         {costData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={BAR_COLORS[index % BAR_COLORS.length]} className="hover:opacity-80 transition-opacity duration-300 cursor-pointer" />
+                          <Cell 
+                            key={`cell-${index}`} 
+                            fill={BAR_COLORS[index % BAR_COLORS.length]} 
+                            className="hover:opacity-80 transition-opacity duration-300" 
+                          />
                         ))}
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
               </FlipCard>
-
               {/* Bottom Right: Payroll Distribution */}
               <FlipCard
                 containerClassName="flex flex-col items-center group w-full h-full print-break-inside-avoid"
@@ -746,7 +994,7 @@ export default function Reports() {
           ADVANCED ANALYTICS SECTION (below the printable dashboard)
           ════════════════════════════════════════════════════════════ */}
       {plData && advancedData && showAdvanced && (
-        <div className="mt-8 no-print animate-fade-in">
+        <div className="mt-8 animate-fade-in print:mt-12">
           <div className="flex items-center gap-3 mb-5">
             <div className="w-1 h-8 bg-gradient-to-b from-violet-500 to-indigo-600 rounded-full"></div>
             <h2 className="text-xl font-bold text-slate-800">Advanced Business Analytics</h2>
@@ -1013,7 +1261,12 @@ export default function Reports() {
                 </div>
                 {trendData ? (
                   <ResponsiveContainer width="100%" height={260}>
-                    <ComposedChart data={trendData.monthly} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+                    <ComposedChart 
+                      data={trendData.monthly} 
+                      margin={{ top: 10, right: 10, left: 10, bottom: 0 }}
+                      onClick={handleMonthlyChartClick}
+                      style={{ cursor: 'pointer' }}
+                    >
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                       <XAxis dataKey="month" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
                       <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `₹${(v/1000).toFixed(0)}k`} />
@@ -1399,8 +1652,63 @@ export default function Reports() {
             </FlipCard>
           )}
 
+          {/* ── Row 7: TDS Receivable Report ── */}
+          {tdsData && (
+            <FlipCard
+              containerClassName="mt-5"
+              infoTitle="TDS Receivable Report"
+              infoText="Tracks the total Tax Deducted at Source (TDS) by your clients. This is critical for filing your income tax returns and claiming credit for the TDS deposited by clients."
+              infoIcon={Receipt}
+            >
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:shadow-lg transition-all duration-300 h-full">
+                <div className="flex justify-between items-start mb-5">
+                  <div>
+                    <p className="text-slate-500 text-sm font-semibold uppercase tracking-wide">TDS Receivable Report</p>
+                    <p className="text-xs text-slate-400 mt-0.5">Summary of TDS deducted by clients over the selected period</p>
+                  </div>
+                  <Receipt className="text-amber-500 w-5 h-5" />
+                </div>
+                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-50 border-b border-slate-200">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wide">Client Name</th>
+                        <th className="px-4 py-3 text-center text-xs font-bold text-slate-500 uppercase tracking-wide">Total Amount Paid</th>
+                        <th className="px-4 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wide bg-amber-50/50">Total TDS Deducted</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {tdsData.length === 0 ? (
+                        <tr>
+                          <td colSpan="3" className="px-4 py-8 text-center text-slate-500 font-medium">No TDS has been recorded for the selected period.</td>
+                        </tr>
+                      ) : (
+                        tdsData.map((client) => (
+                          <tr key={client.client_id} className="hover:bg-slate-50 transition-colors">
+                            <td className="px-4 py-3 font-semibold text-slate-800">{client.client_name}</td>
+                            <td className="px-4 py-3 text-center font-medium text-emerald-600">₹{client.total_amount_paid.toLocaleString('en-IN')}</td>
+                            <td className="px-4 py-3 text-right text-amber-700 font-black bg-amber-50/30">₹{client.total_tds_deducted.toLocaleString('en-IN')}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </FlipCard>
+          )}
+
         </div>
       )}
+
+      <DrillDownModal
+        isOpen={drillDownModal.isOpen}
+        onClose={() => setDrillDownModal(prev => ({ ...prev, isOpen: false }))}
+        title={drillDownModal.title}
+        data={drillDownModal.data}
+        columns={drillDownModal.columns}
+        type={drillDownModal.type}
+      />
     </div>
   );
 }

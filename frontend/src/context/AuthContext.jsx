@@ -9,16 +9,17 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const initAuth = async () => {
-      const token = localStorage.getItem('token');
-      if (token) {
-        try {
-          const response = await api.get('/auth/me');
+      // We no longer check localStorage for token, just ping /auth/me
+      // If the cookie is present and valid, it will succeed
+      try {
+        const response = await api.get('/auth/me');
+        if (response.success) {
           setUser(response.data);
-        } catch (error) {
-          console.error('Session expired', error);
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
+          localStorage.setItem('user', JSON.stringify(response.data));
         }
+      } catch (error) {
+        console.error('Session expired or not logged in', error);
+        localStorage.removeItem('user');
       }
       setLoading(false);
     };
@@ -40,7 +41,12 @@ export const AuthProvider = ({ children }) => {
     return response.data;
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch (e) {
+      console.error('Logout error', e);
+    }
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(null);

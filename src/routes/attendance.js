@@ -1,15 +1,22 @@
 const express = require('express');
 const router = express.Router();
 const { query } = require('../database/connection');
-const { authMiddleware, requireRole } = require('../middleware/auth');
+const { authMiddleware, requirePermission } = require('../middleware/auth');
 const multer = require('multer');
 const csv = require('csv-parser');
 const fs = require('fs');
 
-const upload = multer({ dest: 'uploads/temp/' });
+const path = require('path');
+const { logError } = require('../utils/errorLogger');
+const baseUploadPath = process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads');
+const tempDir = path.join(baseUploadPath, 'temp');
+if (!fs.existsSync(tempDir)) {
+  fs.mkdirSync(tempDir, { recursive: true });
+}
+const upload = multer({ dest: tempDir });
 
 router.use(authMiddleware);
-router.use(requireRole('admin', 'manager', 'employee'));
+router.use(requirePermission('manage_employees'));
 
 // GET /api/attendance
 router.get('/', async (req, res) => {
@@ -39,7 +46,7 @@ router.get('/', async (req, res) => {
       [...params, parseInt(limit), offset]
     );
 
-    const countResult = await query(`SELECT COUNT(*) FROM attendance a ${where}`, params);
+    const countResult = await query(`SELECT COUNT(*) AS count FROM attendance a ${where}`, params);
 
     res.json({
       success: true,
@@ -47,6 +54,7 @@ router.get('/', async (req, res) => {
       pagination: { total: parseInt(countResult.rows[0].count), page: parseInt(page), limit: parseInt(limit) }
     });
   } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'attendance' });
     console.error('Get attendance error:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch attendance' });
   }
@@ -84,6 +92,7 @@ router.post('/', async (req, res) => {
 
     res.status(201).json({ success: true, data: result.rows[0], message: 'Attendance marked successfully' });
   } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'attendance' });
     console.error('Mark attendance error:', error);
     res.status(500).json({ success: false, message: 'Failed to mark attendance' });
   }
@@ -119,12 +128,14 @@ router.post('/bulk', async (req, res) => {
         );
         successCount++;
       } catch (err) {
+    logError(err, typeof req !== 'undefined' ? req : {}, { feature: 'attendance' });
         errors.push({ record, error: err.message });
       }
     }
 
     res.json({ success: true, message: `${successCount} records marked`, errors });
   } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'attendance' });
     res.status(500).json({ success: false, message: 'Bulk attendance failed' });
   }
 });
@@ -139,11 +150,11 @@ router.get('/summary/:employee_id/:month', async (req, res) => {
 
     const result = await query(
       `SELECT 
-        COUNT(*) FILTER (WHERE status = 'present') as present_days,
-        COUNT(*) FILTER (WHERE status = 'absent') as absent_days,
-        COUNT(*) FILTER (WHERE status = 'leave') as leave_days,
-        COUNT(*) FILTER (WHERE status = 'holiday') as holiday_days,
-        COUNT(*) FILTER (WHERE status = 'half_day') as half_days,
+        SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) as present_days,
+        SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END) as absent_days,
+        SUM(CASE WHEN status = 'leave' THEN 1 ELSE 0 END) as leave_days,
+        SUM(CASE WHEN status = 'holiday' THEN 1 ELSE 0 END) as holiday_days,
+        SUM(CASE WHEN status = 'half_day' THEN 1 ELSE 0 END) as half_days,
         COALESCE(SUM(hours_worked), 0) as total_hours,
         COUNT(*) as total_records
        FROM attendance
@@ -153,6 +164,7 @@ router.get('/summary/:employee_id/:month', async (req, res) => {
 
     res.json({ success: true, data: { ...result.rows[0], month, employee_id, start_date: startDate, end_date: endDate } });
   } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'attendance' });
     res.status(500).json({ success: false, message: 'Failed to get attendance summary' });
   }
 });
@@ -175,8 +187,6 @@ router.post('/bulk-upload', upload.single('file'), (req, res) => {
     })
     .on('end', async () => {
       try {
-        // Clean up the temp file
-        if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
 
       for (const row of results) {
         try {
@@ -225,6 +235,7 @@ router.post('/bulk-upload', upload.single('file'), (req, res) => {
           );
           successCount++;
         } catch (err) {
+    logError(err, typeof req !== 'undefined' ? req : {}, { feature: 'attendance' });
           errors.push({ row, error: err.message });
         }
       }
@@ -235,7 +246,10 @@ router.post('/bulk-upload', upload.single('file'), (req, res) => {
         successCount,
         errors
       });
+      // Clean up the temp file after processing is complete
+      if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
       } catch (err) {
+    logError(err, typeof req !== 'undefined' ? req : {}, { feature: 'attendance' });
         console.error('Bulk upload error:', err);
         if (!res.headersSent) {
           res.status(500).json({ success: false, message: 'An error occurred during bulk processing' });

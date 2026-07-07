@@ -68,9 +68,9 @@ function runStartupSecurityCheck() {
     console.error('\n🔴 SECURITY ERRORS — Fix these before go-live:');
     errors.forEach((e) => console.error(`   ✗ ${e}`));
     if (isProduction) {
-      // In production, misconfigured secrets are fatal
-      console.error('\n❌ Critical security errors detected. Shutting down...\n');
-      process.exit(1);
+      // In production (Electron), log the error but do NOT kill the process.
+      // Killing the process would silently close the app with no explanation to the user.
+      console.error('\n⚠ Security errors detected in production — please review configuration.\n');
     }
   }
 

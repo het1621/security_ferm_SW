@@ -6,18 +6,37 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { createLogger } = require('./utils/secureLogger');
+const cookieParser = require('cookie-parser');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Security middleware
 app.use(helmet());
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+
+// CORS: In production (Electron), frontend + backend are same process — allow all origins.
+// In development, restrict to localhost only.
+if (process.env.NODE_ENV === 'production') {
+  app.use(cors({ origin: true, credentials: true }));
+} else {
+  app.use(cors({
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true);
+      if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+        return callback(null, true);
+      }
+      const allowedOrigin = process.env.FRONTEND_URL;
+      if (allowedOrigin && origin === allowedOrigin) {
+        return callback(null, true);
+      }
+      return callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-master-passcode']
+  }));
+}
+app.use(cookieParser());
 
 // Rate limiting
 const limiter = rateLimit({
@@ -28,7 +47,8 @@ app.use('/api/', limiter);
 
 // Serve static files (documents/uploads)
 const path = require('path');
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+const uploadBaseDir = process.env.UPLOAD_DIR || path.join(__dirname, '..', 'uploads');
+app.use('/uploads', express.static(uploadBaseDir));
 
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
@@ -38,16 +58,36 @@ app.use(express.urlencoded({ extended: true }));
 app.use(createLogger());
 
 // Routes
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/clients', require('./routes/clients'));
-app.use('/api/employees', require('./routes/employees'));
-app.use('/api/attendance', require('./routes/attendance'));
-app.use('/api/invoices', require('./routes/invoices'));
-app.use('/api/payroll', require('./routes/payroll'));
-app.use('/api/expenses', require('./routes/expenses'));
-app.use('/api/reports', require('./routes/reports'));
-app.use('/api/dashboard', require('./routes/dashboard'));
-app.use('/api/settings', require('./routes/settings'));
+const authRoutes = require('./routes/auth');
+const employeesRoutes = require('./routes/employees');
+const clientsRoutes = require('./routes/clients');
+const attendanceRoutes = require('./routes/attendance');
+const payrollRoutes = require('./routes/payroll');
+const invoicesRoutes = require('./routes/invoices');
+const expensesRoutes = require('./routes/expenses');
+const settingsRoutes = require('./routes/settings');
+const reportsRoutes = require('./routes/reports');
+const dashboardRoutes = require('./routes/dashboard');
+const ledgerRoutes = require('./routes/ledger');
+const vendorsRoutes = require('./routes/vendors');
+
+// Mount Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/employees', employeesRoutes);
+app.use('/api/clients', clientsRoutes);
+app.use('/api/attendance', attendanceRoutes);
+app.use('/api/payroll', payrollRoutes);
+app.use('/api/invoices', invoicesRoutes);
+app.use('/api/expenses', expensesRoutes);
+app.use('/api/settings', settingsRoutes);
+app.use('/api/reports', reportsRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/ledger', ledgerRoutes);
+app.use('/api/vendors', vendorsRoutes);
+app.use('/api/recurring-expenses', require('./routes/recurring_expenses'));
+app.use('/api/errors', require('./routes/errors'));
+app.use('/api/statements', require('./routes/statements'));
+app.use('/api/pl-account', require('./routes/pl-account'));
 
 // Health check
 app.get('/health', (req, res) => {
@@ -57,7 +97,7 @@ app.get('/health', (req, res) => {
 const { startScheduledJobs } = require('./utils/scheduledJobs');
 
 // Global error handler — never leak stack traces in production
-app.use((err, req, res, next) => {
+app.use(async (err, req, res, next) => {
   const isDev = process.env.NODE_ENV !== 'production';
   if (isDev) {
     console.error('Unhandled Error:', err.message, err.stack);
@@ -65,6 +105,31 @@ app.use((err, req, res, next) => {
     // In production: log only the message, not the stack (which may contain data)
     console.error(`[ERROR] ${new Date().toISOString()} | ${req.method} ${req.url} | ${err.message}`);
   }
+  
+  // Try to log the error to DB
+  try {
+    const { query } = require('./database/connection');
+    const client_ip = req.ip || req.connection.remoteAddress;
+    let user_id = null;
+    if (req.user && req.user.userId) user_id = req.user.userId;
+    
+    await query(
+      `INSERT INTO error_logs (error_type, error_message, stack_trace, endpoint, method, user_id, client_ip)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        err.name || 'ServerError',
+        err.message || 'Unknown server error',
+        err.stack || null,
+        req.originalUrl || req.url,
+        req.method,
+        user_id,
+        client_ip
+      ]
+    );
+  } catch (dbErr) {
+    console.error('Failed to save error log to DB:', dbErr);
+  }
+
   const status = err.status || 500;
   res.status(status).json({
     success: false,
@@ -73,18 +138,24 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 404 handler
+// Serve React frontend
+app.use(express.static(path.join(__dirname, '..', 'frontend-dist')));
+
+// Catch-all route for React SPA, except API routes
 app.use((req, res) => {
-  res.status(404).json({ success: false, message: 'Route not found' });
+  if (req.originalUrl.startsWith('/api/')) {
+    return res.status(404).json({ success: false, message: 'Route not found' });
+  }
+  res.sendFile(path.join(__dirname, '..', 'frontend-dist', 'index.html'));
 });
 
 // Initialize scheduled cron jobs
 startScheduledJobs();
 
-app.listen(PORT, () => {
-  console.log(`\n🚀 Security Firm API Server running on http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`\n🚀 Security Firm API Server running on port ${PORT} (0.0.0.0)`);
   console.log(`📊 Environment: ${process.env.NODE_ENV}`);
-  console.log(`🗄️  Database: ${process.env.DB_NAME}@${process.env.DB_HOST}:${process.env.DB_PORT}\n`);
+  console.log(`🗄️  Database: SQLite @ ${process.env.DB_PATH || 'database.sqlite'}\n`);
 });
 
 module.exports = app;

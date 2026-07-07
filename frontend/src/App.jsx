@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import Layout from './components/layout/Layout';
 
@@ -12,9 +12,15 @@ import Employees from './pages/Employees';
 import Attendance from './pages/Attendance';
 import Invoices from './pages/Invoices';
 import Payroll from './pages/Payroll';
+import Ledger from './pages/Ledger';
 import Expenses from './pages/Expenses';
+import VendorStatements from './pages/VendorStatements';
 import Reports from './pages/Reports';
+import TaxReports from './pages/TaxReports';
 import Settings from './pages/Settings';
+import StatementArchive from './pages/StatementArchive';
+import PLAccount from './pages/PLAccount';
+import DeveloperConsole from './pages/DeveloperConsole';
 
 function App() {
   return (
@@ -24,6 +30,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
+          <Route path="/developer" element={<DeveloperConsole />} />
           <Route element={<Layout />}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/clients" element={<Clients />} />
@@ -31,8 +38,13 @@ function App() {
             <Route path="/attendance" element={<Attendance />} />
             <Route path="/invoices" element={<Invoices />} />
             <Route path="/payroll" element={<Payroll />} />
+            <Route path="/ledger" element={<Ledger />} />
             <Route path="/expenses" element={<Expenses />} />
+            <Route path="/vendor-statements" element={<VendorStatements />} />
             <Route path="/reports" element={<Reports />} />
+            <Route path="/tax-reports" element={<TaxReports />} />
+            <Route path="/statements" element={<StatementArchive />} />
+            <Route path="/pl-account" element={<PLAccount />} />
             <Route path="/settings" element={<Settings />} />
           </Route>
         </Routes>

@@ -124,7 +124,11 @@ export default function Employees() {
       setEditingEmp(null);
       fetchEmployees();
     } catch (err) {
-      setError(err.message || 'Failed to save employee');
+      if (err.errors && Array.isArray(err.errors)) {
+        setError(err.errors.map(e => e.message).join(' | '));
+      } else {
+        setError(err.message || 'Failed to save employee');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -158,6 +162,17 @@ export default function Employees() {
       fetchEmployees();
     } catch (err) {
       console.error('Failed to deactivate employee', err);
+    }
+  };
+
+  const handleHardDelete = async (id) => {
+    try {
+      await api.delete(`/employees/${id}/hard`);
+      setConfirmDelete(null);
+      fetchEmployees();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to permanently delete employee');
+      console.error('Failed to permanently delete employee', err);
     }
   };
 
@@ -290,10 +305,13 @@ export default function Employees() {
                           <Edit2 className="w-4 h-4" />
                         </button>
                         {emp.is_active && (
-                          <button onClick={() => setConfirmDelete(emp.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Deactivate">
-                            <Trash2 className="w-4 h-4" />
+                          <button onClick={() => setConfirmDelete({ id: emp.id, type: 'deactivate' })} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors" title="Deactivate">
+                            <XCircle className="w-4 h-4" />
                           </button>
                         )}
+                        <button onClick={() => setConfirmDelete({ id: emp.id, type: 'hard' })} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete Permanently">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -305,15 +323,26 @@ export default function Employees() {
         <Pagination pagination={pagination} onPageChange={setPage} />
       </div>
 
-      {/* Deactivate Confirmation */}
+      {/* Deactivate/Delete Confirmation */}
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fade-in">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 animate-slide-up">
-            <h3 className="text-lg font-bold text-slate-800 mb-2">Confirm Deactivation</h3>
-            <p className="text-sm text-slate-600 mb-6">Are you sure you want to deactivate this employee? They will be marked as inactive.</p>
+            <h3 className="text-lg font-bold text-slate-800 mb-2">
+              {confirmDelete.type === 'deactivate' ? 'Confirm Deactivation' : 'Confirm Permanent Delete'}
+            </h3>
+            <p className="text-sm text-slate-600 mb-6">
+              {confirmDelete.type === 'deactivate' 
+                ? 'Are you sure you want to deactivate this employee? They will be marked as inactive.' 
+                : 'Are you sure you want to PERMANENTLY delete this employee? This action cannot be undone and will fail if they have linked attendance or payroll records.'}
+            </p>
             <div className="flex justify-end gap-3">
               <button onClick={() => setConfirmDelete(null)} className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
-              <button onClick={() => handleDeactivate(confirmDelete)} className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors shadow-sm">Deactivate</button>
+              <button 
+                onClick={() => confirmDelete.type === 'deactivate' ? handleDeactivate(confirmDelete.id) : handleHardDelete(confirmDelete.id)} 
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors shadow-sm"
+              >
+                {confirmDelete.type === 'deactivate' ? 'Deactivate' : 'Delete Permanently'}
+              </button>
             </div>
           </div>
         </div>
@@ -331,7 +360,7 @@ export default function Employees() {
               <button onClick={() => { setIsModalOpen(false); setEditingEmp(null); }} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 overflow-y-auto">
+            <form onSubmit={handleSubmit} className="p-6 overflow-y-auto flex-1 min-h-0">
               {error && <div className="mb-4 p-3 bg-red-50 text-red-700 text-sm rounded-lg">{error}</div>}
 
               {/* Personal Info */}

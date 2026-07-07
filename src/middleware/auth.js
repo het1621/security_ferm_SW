@@ -3,11 +3,15 @@ const jwt = require('jsonwebtoken');
 const authMiddleware = (req, res, next) => {
   try {
     let token;
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      token = authHeader.split(' ')[1];
-    } else if (req.query.token) {
-      token = req.query.token;
+    if (req.cookies && req.cookies.token) {
+      token = req.cookies.token;
+    } else {
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.split(' ')[1];
+      } else if (req.query.token) {
+        token = req.query.token;
+      }
     }
 
     if (!token) {
@@ -36,4 +40,25 @@ const requireRole = (...roles) => {
   };
 };
 
-module.exports = { authMiddleware, requireRole };
+const requirePermission = (...perms) => {
+  return (req, res, next) => {
+    // Admins bypass all permission checks
+    if (req.user && req.user.role === 'admin') {
+      return next();
+    }
+    
+    // Check if the user has any of the requested permissions
+    const userPerms = req.user?.permissions || [];
+    const hasPerm = perms.some(p => userPerms.includes(p));
+    
+    if (!req.user || !hasPerm) {
+      return res.status(403).json({
+        success: false,
+        message: `Access denied. Requires one of these permissions: ${perms.join(', ')}`
+      });
+    }
+    next();
+  };
+};
+
+module.exports = { authMiddleware, requireRole, requirePermission };

@@ -7,6 +7,7 @@ const { authMiddleware, requireRole } = require('../middleware/auth');
 const crypto = require('crypto');
 const { sendEmail } = require('../utils/email');
 const rateLimit = require('express-rate-limit');
+const { logError } = require('../utils/errorLogger');
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -38,11 +39,21 @@ router.post('/login', loginLimiter, async (req, res) => {
     // Update last login
     await query('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1', [user.id]);
 
+    const parsedPermissions = user.permissions ? JSON.parse(user.permissions) : [];
+    
     const token = jwt.sign(
-      { userId: user.id, email: user.email, role: user.role, name: user.full_name },
+      { userId: user.id, email: user.email, role: user.role, name: user.full_name, permissions: parsedPermissions },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
     );
+
+    // Set JWT in httpOnly cookie
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: false, // Must be false because Electron app uses http://localhost:5000
+      sameSite: 'strict',
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    });
 
     res.json({
       success: true,
@@ -54,14 +65,26 @@ router.post('/login', loginLimiter, async (req, res) => {
           email: user.email,
           full_name: user.full_name,
           role: user.role,
-          phone: user.phone
+          phone: user.phone,
+          permissions: parsedPermissions
         }
       }
     });
   } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'auth' });
     console.error('Login error:', error);
     res.status(500).json({ success: false, message: 'Login failed, please try again' });
   }
+});
+
+// POST /api/auth/logout
+router.post('/logout', (req, res) => {
+  res.clearCookie('token', {
+    httpOnly: true,
+    secure: false, // Must be false because Electron app uses http://localhost:5000
+    sameSite: 'strict'
+  });
+  res.json({ success: true, message: 'Logged out successfully' });
 });
 
 // GET /api/auth/me
@@ -76,7 +99,37 @@ router.get('/me', authMiddleware, async (req, res) => {
     }
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'auth' });
     res.status(500).json({ success: false, message: 'Failed to fetch user' });
+  }
+});
+
+// PUT /api/auth/update-profile
+router.put('/update-profile', authMiddleware, async (req, res) => {
+  try {
+    const { email, full_name } = req.body;
+    if (!email || !full_name) {
+      return res.status(400).json({ success: false, message: 'Email and full name are required' });
+    }
+
+    const result = await query(
+      'UPDATE users SET email = $1, full_name = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3',
+      [email.toLowerCase(), full_name, req.user.userId]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const updated = await query('SELECT id, email, full_name, role, phone FROM users WHERE id = $1', [req.user.userId]);
+    res.json({ success: true, message: 'Profile updated successfully', data: updated.rows[0] });
+  } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'auth' });
+    if (error.code === '23505' || (error.message && error.message.includes('UNIQUE'))) {
+      return res.status(400).json({ success: false, message: 'Email already in use' });
+    }
+    console.error('Update profile error:', error);
+    res.status(500).json({ success: false, message: 'Failed to update profile' });
   }
 });
 
@@ -104,6 +157,7 @@ router.post('/change-password', authMiddleware, async (req, res) => {
 
     res.json({ success: true, message: 'Password changed successfully' });
   } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'auth' });
     res.status(500).json({ success: false, message: 'Failed to change password' });
   }
 });
@@ -112,10 +166,11 @@ router.post('/change-password', authMiddleware, async (req, res) => {
 router.get('/users', authMiddleware, requireRole('admin'), async (req, res) => {
   try {
     const result = await query(
-      'SELECT id, email, full_name, role, phone, is_active, last_login, created_at FROM users ORDER BY created_at DESC'
+      'SELECT id, email, full_name, role, phone, is_active, last_login, created_at, permissions FROM users ORDER BY created_at DESC'
     );
     res.json({ success: true, data: result.rows });
   } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'auth' });
     res.status(500).json({ success: false, message: 'Failed to fetch users' });
   }
 });
@@ -123,20 +178,22 @@ router.get('/users', authMiddleware, requireRole('admin'), async (req, res) => {
 // POST /api/auth/users (admin only)
 router.post('/users', authMiddleware, requireRole('admin'), async (req, res) => {
   try {
-    const { email, password, full_name, role, phone } = req.body;
+    const { email, password, full_name, role, phone, permissions } = req.body;
     if (!email || !password || !full_name || !role) {
       return res.status(400).json({ success: false, message: 'Email, password, name, and role are required' });
     }
 
     const hash = await bcrypt.hash(password, 12);
+    const permsJson = JSON.stringify(permissions || []);
     const result = await query(
-      'INSERT INTO users (email, password_hash, full_name, role, phone, created_by) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, email, full_name, role',
-      [email.toLowerCase(), hash, full_name, role, phone, req.user.userId]
+      'INSERT INTO users (email, password_hash, full_name, role, phone, created_by, permissions) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, email, full_name, role, permissions',
+      [email.toLowerCase(), hash, full_name, role, phone, req.user.userId, permsJson]
     );
 
     res.status(201).json({ success: true, data: result.rows[0], message: 'User created successfully' });
   } catch (error) {
-    if (error.code === '23505') {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'auth' });
+    if (error.code === '23505' || error.code === 'SQLITE_CONSTRAINT_UNIQUE' || (error.message && error.message.includes('UNIQUE'))) {
       return res.status(400).json({ success: false, message: 'Email already exists' });
     }
     res.status(500).json({ success: false, message: 'Failed to create user' });
@@ -159,7 +216,7 @@ router.post('/forgot-password', async (req, res) => {
     const user = result.rows[0];
     const resetToken = crypto.randomBytes(32).toString('hex');
     const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // Store as ISO string for SQLite compat
 
     await query(
       'UPDATE users SET reset_token = $1, reset_token_expires = $2 WHERE id = $3',
@@ -188,6 +245,7 @@ router.post('/forgot-password', async (req, res) => {
 
     res.json({ success: true, message: 'If an account exists, a password reset email has been sent.' });
   } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'auth' });
     console.error('Forgot password error:', error);
     res.status(500).json({ success: false, message: 'Failed to process password reset request' });
   }
@@ -225,6 +283,7 @@ router.post('/reset-password', async (req, res) => {
 
     res.json({ success: true, message: 'Password has been reset successfully. You can now login.' });
   } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'auth' });
     console.error('Reset password error:', error);
     res.status(500).json({ success: false, message: 'Failed to reset password' });
   }

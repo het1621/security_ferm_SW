@@ -76,7 +76,67 @@ const startScheduledJobs = () => {
       console.error('⏳ [CRON] Failed to run monthly invoice generation:', error);
     }
   });
+
+  // Auto-mark overdue invoices every day at 06:00 AM
+  cron.schedule('0 6 * * *', async () => {
+    try {
+      const result = await query(
+        `UPDATE invoices SET status = 'overdue', updated_at = CURRENT_TIMESTAMP
+         WHERE status IN ('pending', 'partially_paid')
+           AND due_date < date('now', 'localtime')
+           AND payment_due > 0`
+      );
+      if (result.rowCount > 0) {
+        console.log(`⏰ [CRON] Marked ${result.rowCount} invoice(s) as overdue.`);
+      }
+    } catch (error) {
+      console.error('⏰ [CRON] Failed to update overdue invoices:', error);
+    }
+  });
   
+  // Process recurring expenses every day at 01:00 AM
+  cron.schedule('0 1 * * *', async () => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const result = await query(
+        `SELECT * FROM recurring_expenses 
+         WHERE is_active = 1 AND next_run_date <= $1`,
+        [today]
+      );
+      
+      let processed = 0;
+      for (const reqExp of result.rows) {
+        // Insert expense
+        await query(
+          `INSERT INTO expenses (expense_date, category, description, amount, payment_method, vendor_id, status, created_by)
+           VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7)`,
+          [today, reqExp.category, reqExp.title, reqExp.amount, reqExp.payment_method, reqExp.vendor_id, reqExp.created_by]
+        );
+        
+        // Calculate next run date
+        let nextDate = new Date(reqExp.next_run_date);
+        if (reqExp.frequency === 'weekly') {
+          nextDate.setDate(nextDate.getDate() + 7);
+        } else if (reqExp.frequency === 'monthly') {
+          nextDate.setMonth(nextDate.getMonth() + 1);
+        } else if (reqExp.frequency === 'yearly') {
+          nextDate.setFullYear(nextDate.getFullYear() + 1);
+        }
+        
+        await query(
+          'UPDATE recurring_expenses SET next_run_date = $1 WHERE id = $2',
+          [nextDate.toISOString().split('T')[0], reqExp.id]
+        );
+        processed++;
+      }
+      if (processed > 0) {
+        console.log(`⏰ [CRON] Processed ${processed} recurring expenses.`);
+      }
+    } catch (error) {
+      console.error('⏰ [CRON] Failed to process recurring expenses:', error);
+    }
+  });
+
   console.log('⏰ Scheduled jobs initialized');
 };
 

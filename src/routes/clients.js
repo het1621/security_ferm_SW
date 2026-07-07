@@ -1,11 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const { query } = require('../database/connection');
-const { authMiddleware, requireRole } = require('../middleware/auth');
+const { authMiddleware, requirePermission } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validators');
+const { logError } = require('../utils/errorLogger');
 
 router.use(authMiddleware);
-router.use(requireRole('admin', 'manager'));
+router.use(requirePermission('manage_invoices'));
 
 // GET /api/clients
 router.get('/', async (req, res) => {
@@ -16,12 +17,12 @@ router.get('/', async (req, res) => {
     let paramCount = 1;
 
     if (search) {
-      whereConditions.push(`(c.name ILIKE $${paramCount} OR c.contact_person ILIKE $${paramCount} OR c.phone ILIKE $${paramCount})`);
+      whereConditions.push(`(c.name LIKE $${paramCount} OR c.contact_person LIKE $${paramCount} OR c.phone LIKE $${paramCount})`);
       params.push(`%${search}%`);
       paramCount++;
     }
     if (city) {
-      whereConditions.push(`c.city ILIKE $${paramCount}`);
+      whereConditions.push(`c.city LIKE $${paramCount}`);
       params.push(`%${city}%`);
       paramCount++;
     }
@@ -47,7 +48,7 @@ router.get('/', async (req, res) => {
       [...params, parseInt(limit), offset]
     );
 
-    const countResult = await query(`SELECT COUNT(*) FROM clients c ${whereClause}`, params);
+    const countResult = await query(`SELECT COUNT(*) AS count FROM clients c ${whereClause}`, params);
     const total = parseInt(countResult.rows[0].count);
 
     res.json({
@@ -56,6 +57,7 @@ router.get('/', async (req, res) => {
       pagination: { total, page: parseInt(page), limit: parseInt(limit), pages: Math.ceil(total / parseInt(limit)) }
     });
   } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'clients' });
     console.error('Get clients error:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch clients' });
   }
@@ -77,6 +79,7 @@ router.get('/:id', async (req, res) => {
     }
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'clients' });
     res.status(500).json({ success: false, message: 'Failed to fetch client' });
   }
 });
@@ -94,7 +97,7 @@ router.post('/', validate(schemas.createClient), async (req, res) => {
 
     // Check for duplicate client name
     const existingClient = await query(
-      'SELECT id FROM clients WHERE name ILIKE $1 AND is_active = true LIMIT 1',
+      'SELECT id FROM clients WHERE name LIKE $1 AND is_active = true LIMIT 1',
       [name]
     );
     if (existingClient.rows.length > 0) {
@@ -109,6 +112,7 @@ router.post('/', validate(schemas.createClient), async (req, res) => {
 
     res.status(201).json({ success: true, data: result.rows[0], message: 'Client created successfully' });
   } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'clients' });
     res.status(500).json({ success: false, message: 'Failed to create client' });
   }
 });
@@ -118,18 +122,26 @@ router.put('/:id', validate(schemas.updateClient), async (req, res) => {
   try {
     const { name, address, city, state, postal_code, email, phone, contact_person, gst_number, monthly_rate, contract_start_date, contract_end_date, notes, is_active } = req.body;
 
+    // Coerce is_active to boolean (SQLite returns 0/1 which round-trips through the form)
+    const isActiveBool = is_active !== undefined ? Boolean(is_active) : true;
+
     const result = await query(
       `UPDATE clients SET name=$1, address=$2, city=$3, state=$4, postal_code=$5, email=$6, phone=$7, contact_person=$8, 
        gst_number=$9, monthly_rate=$10, contract_start_date=$11, contract_end_date=$12, notes=$13, is_active=$14, updated_at=CURRENT_TIMESTAMP
-       WHERE id=$15 RETURNING *`,
-      [name, address, city, state, postal_code, email, phone, contact_person, gst_number, monthly_rate, contract_start_date, contract_end_date || null, notes, is_active !== undefined ? is_active : true, req.params.id]
+       WHERE id=$15`,
+      [name, address, city, state, postal_code, email, phone, contact_person, gst_number, monthly_rate, contract_start_date, contract_end_date || null, notes, isActiveBool, req.params.id]
     );
 
-    if (result.rows.length === 0) {
+    if (result.rowCount === 0) {
       return res.status(404).json({ success: false, message: 'Client not found' });
     }
-    res.json({ success: true, data: result.rows[0], message: 'Client updated successfully' });
+
+    // Re-fetch the updated client (RETURNING * is stripped by the SQLite adapter)
+    const updated = await query('SELECT * FROM clients WHERE id = $1', [req.params.id]);
+    res.json({ success: true, data: updated.rows[0], message: 'Client updated successfully' });
   } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'clients' });
+    console.error('Update client error:', error);
     res.status(500).json({ success: false, message: 'Failed to update client' });
   }
 });
@@ -138,15 +150,33 @@ router.put('/:id', validate(schemas.updateClient), async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const result = await query(
-      'UPDATE clients SET is_active = false, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING id',
+      'UPDATE clients SET is_active = false, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
       [req.params.id]
     );
-    if (result.rows.length === 0) {
+    if (result.rowCount === 0) {
       return res.status(404).json({ success: false, message: 'Client not found' });
     }
     res.json({ success: true, message: 'Client deactivated successfully' });
   } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'clients' });
     res.status(500).json({ success: false, message: 'Failed to deactivate client' });
+  }
+});
+
+// DELETE /api/clients/:id/hard (hard delete)
+router.delete('/:id/hard', async (req, res) => {
+  try {
+    const result = await query('DELETE FROM clients WHERE id = $1', [req.params.id]);
+    if (result.rowCount === 0) {
+      return res.status(404).json({ success: false, message: 'Client not found' });
+    }
+    res.json({ success: true, message: 'Client permanently deleted' });
+  } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'clients' });
+    if (error.code === 'SQLITE_CONSTRAINT_FOREIGNKEY' || (error.message && error.message.includes('FOREIGN KEY'))) {
+      return res.status(400).json({ success: false, message: 'Cannot delete client: linked invoices or employees exist. Please delete or reassign them first.' });
+    }
+    res.status(500).json({ success: false, message: 'Failed to permanently delete client' });
   }
 });
 
@@ -168,14 +198,16 @@ router.patch('/:id/renew', async (req, res) => {
     }
     params.push(req.params.id);
     const result = await query(
-      `UPDATE clients SET ${updates.join(', ')} WHERE id = $${params.length} RETURNING id, name, contract_end_date, monthly_rate`,
+      `UPDATE clients SET ${updates.join(', ')} WHERE id = $${params.length}`,
       params
     );
-    if (result.rows.length === 0) {
+    if (result.rowCount === 0) {
       return res.status(404).json({ success: false, message: 'Client not found' });
     }
-    res.json({ success: true, message: 'Contract renewed successfully', data: result.rows[0] });
+    const updated = await query('SELECT id, name, contract_end_date, monthly_rate FROM clients WHERE id = $1', [req.params.id]);
+    res.json({ success: true, message: 'Contract renewed successfully', data: updated.rows[0] });
   } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'clients' });
     console.error('Contract renewal error:', error);
     res.status(500).json({ success: false, message: 'Failed to renew contract' });
   }
@@ -195,7 +227,7 @@ router.get('/:id/statement', async (req, res) => {
     let params = [req.params.id];
     let pc = 2;
     if (from_date && to_date) {
-      dateWhere = `AND date >= $${pc}::date AND date <= $${pc+1}::date`;
+      dateWhere = `AND date >= date($${pc}) AND date <= date($${pc+1})`;
       params.push(from_date, to_date);
     }
 
@@ -238,6 +270,7 @@ router.get('/:id/statement', async (req, res) => {
       } 
     });
   } catch (error) {
+    logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'clients' });
     console.error('Statement error:', error);
     res.status(500).json({ success: false, message: 'Failed to generate statement' });
   }

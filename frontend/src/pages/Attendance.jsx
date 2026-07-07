@@ -218,7 +218,7 @@ export default function Attendance() {
               </div>
             </div>
 
-            <div className="overflow-y-auto flex-1 p-4">
+            <div className="overflow-y-auto flex-1 p-4 min-h-0">
               {bulkResult && (
                 <div className={`mb-4 p-3 rounded-lg text-sm ${bulkResult.success ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
                   {bulkResult.message}

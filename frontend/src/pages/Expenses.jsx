@@ -5,16 +5,7 @@ import { format } from 'date-fns';
 import Pagination from '../components/Pagination';
 import TableSkeleton from '../components/TableSkeleton';
 
-const CATEGORIES = [
-  { value: 'utilities', label: 'Utilities' },
-  { value: 'equipment', label: 'Equipment' },
-  { value: 'supplies', label: 'Supplies' },
-  { value: 'maintenance', label: 'Maintenance' },
-  { value: 'transport', label: 'Transport' },
-  { value: 'communication', label: 'Communication' },
-  { value: 'salary_advance', label: 'Salary Advance' },
-  { value: 'miscellaneous', label: 'Miscellaneous' },
-];
+// Categories are now fetched dynamically from the database
 
 const PAYMENT_METHODS = [
   { value: 'cash', label: 'Cash' },
@@ -26,11 +17,11 @@ const PAYMENT_METHODS = [
 
 const emptyForm = {
   expense_date: format(new Date(), 'yyyy-MM-dd'),
-  category: 'miscellaneous',
+  category: '',
   description: '',
   amount: '',
   payment_method: 'cash',
-  vendor_name: '',
+  vendor_id: '',
   receipt_number: '',
   notes: ''
 };
@@ -40,11 +31,37 @@ export default function Expenses() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({ ...emptyForm });
+  const [receiptFile, setReceiptFile] = useState(null);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [statusFilter, setStatusFilter] = useState('');
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState(null);
+  const [categories, setCategories] = useState([]);
+  const [vendors, setVendors] = useState([]);
+  
+  // Payment Modal State
+  const [payModalExpense, setPayModalExpense] = useState(null);
+  const [payFormData, setPayFormData] = useState({ amount: '', payment_method: 'bank_transfer', payment_date: format(new Date(), 'yyyy-MM-dd'), reference_number: '', notes: '' });
+  const [paying, setPaying] = useState(false);
+
+  const fetchCategories = async () => {
+    try {
+      const res = await api.get('/expenses/categories');
+      setCategories(res.data || []);
+    } catch (err) {
+      console.error('Failed to fetch categories', err);
+    }
+  };
+
+  const fetchVendors = async () => {
+    try {
+      const res = await api.get('/vendors');
+      setVendors(res.data || []);
+    } catch (err) {
+      console.error('Failed to fetch vendors', err);
+    }
+  };
 
   const fetchExpenses = async () => {
     try {
@@ -60,7 +77,11 @@ export default function Expenses() {
     }
   };
 
-  useEffect(() => { fetchExpenses(); }, [statusFilter, page]);
+  useEffect(() => { 
+    fetchExpenses(); 
+    fetchCategories();
+    fetchVendors();
+  }, [statusFilter, page]);
 
   useEffect(() => { setPage(1); }, [statusFilter]);
 
@@ -70,6 +91,7 @@ export default function Expenses() {
 
   const openCreateModal = () => {
     setFormData({ ...emptyForm });
+    setReceiptFile(null);
     setError('');
     setIsModalOpen(true);
   };
@@ -79,10 +101,21 @@ export default function Expenses() {
     setError('');
     setSubmitting(true);
     try {
-      await api.post('/expenses', {
-        ...formData,
-        amount: parseFloat(formData.amount),
+      const data = new FormData();
+      Object.keys(formData).forEach(key => {
+        if (formData[key] !== null && formData[key] !== undefined) {
+          data.append(key, formData[key]);
+        }
       });
+      if (receiptFile) data.append('receipt_file', receiptFile);
+
+      // Using raw axios for FormData to prevent Content-Type being strictly JSON in our interceptor
+      // Wait, axios automatically sets correct Content-Type for FormData, but our interceptor forces JSON.
+      // We will override headers.
+      await api.post('/expenses', data, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
       setIsModalOpen(false);
       fetchExpenses();
     } catch (err) {
@@ -110,6 +143,20 @@ export default function Expenses() {
       fetchExpenses();
     } catch (err) {
       console.error('Failed to reject expense', err);
+    }
+  };
+
+  const handlePaySubmit = async (e) => {
+    e.preventDefault();
+    setPaying(true);
+    try {
+      await api.post(`/expenses/${payModalExpense.id}/pay`, payFormData);
+      setPayModalExpense(null);
+      fetchExpenses();
+    } catch (err) {
+      alert(err.message || 'Failed to record payment');
+    } finally {
+      setPaying(false);
     }
   };
 
@@ -162,7 +209,7 @@ export default function Expenses() {
                 <th className="px-6 py-4 font-semibold">Date</th>
                 <th className="px-6 py-4 font-semibold">Category</th>
                 <th className="px-6 py-4 font-semibold">Description</th>
-                <th className="px-6 py-4 font-semibold text-right">Amount</th>
+                <th className="px-6 py-4 font-semibold text-right">Amount / Bal</th>
                 <th className="px-6 py-4 font-semibold">Status</th>
                 <th className="px-6 py-4 font-semibold text-right">Actions</th>
               </tr>
@@ -194,10 +241,23 @@ export default function Expenses() {
                     <td className="px-6 py-4">
                       <div className="font-medium text-slate-800">{expense.description}</div>
                       {expense.vendor_name && <div className="text-slate-500 text-xs mt-0.5">Vendor: {expense.vendor_name}</div>}
-                      <div className="text-slate-400 text-xs mt-0.5">By {expense.created_by_name}</div>
+                      <div className="text-slate-400 text-xs mt-0.5 flex gap-2 items-center">
+                        <span>By {expense.created_by_name}</span>
+                        {expense.receipt_url && (
+                          <a href={`http://localhost:5000${expense.receipt_url}`} target="_blank" rel="noreferrer" className="text-teal-600 hover:underline flex items-center gap-1 ml-2">
+                            <Receipt className="w-3 h-3" /> View Receipt
+                          </a>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="font-bold text-slate-900">₹{parseFloat(expense.amount).toLocaleString('en-IN')}</div>
+                      {expense.amount_paid > 0 && (
+                        <div className="text-xs text-emerald-600 mt-1">Paid: ₹{parseFloat(expense.amount_paid).toLocaleString('en-IN')}</div>
+                      )}
+                      {(expense.amount - (expense.amount_paid || 0)) > 0 && expense.status !== 'rejected' && (
+                        <div className="text-xs text-amber-600">Bal: ₹{parseFloat(expense.amount - (expense.amount_paid || 0)).toLocaleString('en-IN')}</div>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium capitalize border
@@ -209,7 +269,18 @@ export default function Expenses() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-2">
+                      <div className="flex justify-end gap-2 flex-wrap">
+                        {expense.status !== 'rejected' && expense.status !== 'paid' && (
+                          <button 
+                            onClick={() => {
+                              setPayModalExpense(expense);
+                              setPayFormData({ ...payFormData, amount: expense.amount - (expense.amount_paid || 0) });
+                            }}
+                            className="px-2 py-1 bg-teal-50 text-teal-700 text-xs font-medium border border-teal-200 hover:bg-teal-100 rounded transition-colors"
+                          >
+                            Pay
+                          </button>
+                        )}
                         {expense.status === 'pending' && (
                           <>
                             <button onClick={() => handleApprove(expense.id)}
@@ -260,7 +331,8 @@ export default function Expenses() {
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Category *</label>
                     <select required name="category" value={formData.category} onChange={handleInputChange} className={inputCls}>
-                      {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                      <option value="">-- Select Category --</option>
+                      {categories.map(c => <option key={c.id} value={c.name}>{c.name.replace('_', ' ').toUpperCase()}</option>)}
                     </select>
                   </div>
                 </div>
@@ -282,13 +354,20 @@ export default function Expenses() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Vendor Name</label>
-                    <input type="text" name="vendor_name" value={formData.vendor_name} onChange={handleInputChange} className={inputCls} />
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Vendor</label>
+                    <select name="vendor_id" value={formData.vendor_id} onChange={handleInputChange} className={inputCls}>
+                      <option value="">-- No Vendor --</option>
+                      {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                    </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Receipt Number</label>
                     <input type="text" name="receipt_number" value={formData.receipt_number} onChange={handleInputChange} className={inputCls} />
                   </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Receipt Attachment</label>
+                  <input type="file" accept="image/*,.pdf" onChange={e => setReceiptFile(e.target.files[0])} className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
@@ -299,6 +378,50 @@ export default function Expenses() {
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50">Cancel</button>
                 <button type="submit" disabled={submitting} className="px-4 py-2 text-sm font-medium text-white bg-teal-600 rounded-lg hover:bg-teal-700 shadow-sm disabled:opacity-50">
                   {submitting ? 'Saving...' : 'Record Expense'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Modal */}
+      {payModalExpense && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-slide-up">
+            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <h3 className="text-lg font-bold text-slate-800">Record Payment</h3>
+              <button onClick={() => setPayModalExpense(null)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
+            </div>
+            <form onSubmit={handlePaySubmit} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Amount (₹) *</label>
+                <input required type="number" min="0.01" step="0.01" value={payFormData.amount} onChange={e => setPayFormData({...payFormData, amount: e.target.value})} className={inputCls} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Payment Method *</label>
+                  <select required value={payFormData.payment_method} onChange={e => setPayFormData({...payFormData, payment_method: e.target.value})} className={inputCls}>
+                    {PAYMENT_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Date *</label>
+                  <input required type="date" value={payFormData.payment_date} onChange={e => setPayFormData({...payFormData, payment_date: e.target.value})} className={inputCls} />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Reference Number</label>
+                <input type="text" value={payFormData.reference_number} onChange={e => setPayFormData({...payFormData, reference_number: e.target.value})} className={inputCls} placeholder="e.g. UTR / Cheque No" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
+                <textarea rows="2" value={payFormData.notes} onChange={e => setPayFormData({...payFormData, notes: e.target.value})} className={inputCls}></textarea>
+              </div>
+              <div className="flex justify-end gap-3 pt-4 mt-4 border-t border-slate-100">
+                <button type="button" onClick={() => setPayModalExpense(null)} className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50">Cancel</button>
+                <button type="submit" disabled={paying} className="px-4 py-2 text-sm font-medium text-white bg-teal-600 rounded-lg hover:bg-teal-700 disabled:opacity-50">
+                  {paying ? 'Saving...' : 'Record Payment'}
                 </button>
               </div>
             </form>

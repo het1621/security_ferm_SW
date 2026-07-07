@@ -9,8 +9,8 @@ const Joi = require('joi');
 // ─── Reusable helpers ────────────────────────────────────────────────────────
 
 const indianPhone = Joi.string()
-  .pattern(/^[6-9]\d{9}$/)
-  .messages({ 'string.pattern.base': '{{#label}} must be a valid 10-digit Indian mobile number starting with 6-9' });
+  .max(20)
+  .messages({ 'string.max': 'Phone number is too long' });
 
 const optionalEmail = Joi.string().email({ tlds: { allow: false } }).optional().allow('', null);
 
@@ -54,16 +54,14 @@ const createClientSchema = Joi.object({
   address: Joi.string().min(5).max(500).required().label('Address'),
   city: Joi.string().min(2).max(100).required().label('City'),
   state: Joi.string().max(100).optional().allow('', null).label('State'),
-  postal_code: Joi.string().pattern(/^\d{6}$/).optional().allow('', null)
-    .messages({ 'string.pattern.base': 'Postal code must be a 6-digit number' })
+  postal_code: Joi.string().max(20).optional().allow('', null)
     .label('Postal code'),
   email: optionalEmail.label('Email'),
   phone: indianPhone.optional().allow('', null).label('Phone'),
   contact_person: Joi.string().max(200).optional().allow('', null).label('Contact person'),
   gst_number: Joi.string()
-    .pattern(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/)
+    .max(50)
     .optional().allow('', null)
-    .messages({ 'string.pattern.base': 'GST number format is invalid (e.g. 27AAPFU0939F1ZV)' })
     .label('GST number'),
   monthly_rate: positiveDecimal.required().label('Monthly rate'),
   contract_start_date: Joi.date().iso().required().label('Contract start date'),
@@ -79,20 +77,18 @@ const updateClientSchema = Joi.object({
   address: Joi.string().min(5).max(500).optional().label('Address'),
   city: Joi.string().min(2).max(100).optional().label('City'),
   state: Joi.string().max(100).optional().allow('', null),
-  postal_code: Joi.string().pattern(/^\d{6}$/).optional().allow('', null)
-    .messages({ 'string.pattern.base': 'Postal code must be a 6-digit number' }),
+  postal_code: Joi.string().max(20).optional().allow('', null),
   email: optionalEmail,
   phone: indianPhone.optional().allow('', null),
   contact_person: Joi.string().max(200).optional().allow('', null),
   gst_number: Joi.string()
-    .pattern(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/)
-    .optional().allow('', null)
-    .messages({ 'string.pattern.base': 'GST number format is invalid' }),
+    .max(50)
+    .optional().allow('', null),
   monthly_rate: positiveDecimal.optional(),
   contract_start_date: Joi.date().iso().optional(),
   contract_end_date: Joi.date().iso().optional().allow('', null),
   notes: Joi.string().max(2000).optional().allow('', null),
-  is_active: Joi.boolean().optional(),
+  is_active: Joi.alternatives().try(Joi.boolean(), Joi.number().valid(0, 1)).optional(),
 });
 
 // POST /api/employees
@@ -106,24 +102,20 @@ const createEmployeeSchema = Joi.object({
   address: Joi.string().max(500).optional().allow('', null).label('Address'),
   city: Joi.string().max(100).optional().allow('', null).label('City'),
   aadhar_number: Joi.string()
-    .pattern(/^\d{12}$/)
+    .max(50)
     .optional().allow('', null)
-    .messages({ 'string.pattern.base': 'Aadhar number must be exactly 12 digits' })
     .label('Aadhar number'),
   pan_number: Joi.string()
-    .pattern(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/)
+    .max(50)
     .optional().allow('', null)
-    .messages({ 'string.pattern.base': 'PAN number format is invalid (e.g. ABCDE1234F)' })
     .label('PAN number'),
   bank_account_number: Joi.string()
-    .pattern(/^\d{9,18}$/)
+    .max(50)
     .optional().allow('', null)
-    .messages({ 'string.pattern.base': 'Bank account number must be 9-18 digits' })
     .label('Bank account number'),
   bank_ifsc_code: Joi.string()
-    .pattern(/^[A-Z]{4}0[A-Z0-9]{6}$/)
+    .max(50)
     .optional().allow('', null)
-    .messages({ 'string.pattern.base': 'IFSC code format is invalid (e.g. SBIN0001234)' })
     .label('IFSC code'),
   bank_name: Joi.string().max(200).optional().allow('', null).label('Bank name'),
   bank_account_holder_name: Joi.string().max(200).optional().allow('', null).label('Account holder name'),
@@ -141,7 +133,7 @@ const updateEmployeeSchema = createEmployeeSchema.fork(
   ['full_name', 'phone', 'date_of_joining'],
   (schema) => schema.optional()
 ).append({
-  is_active: Joi.boolean().optional(),
+  is_active: Joi.alternatives().try(Joi.boolean(), Joi.number().valid(0, 1)).optional(),
 });
 
 // POST /api/invoices
@@ -159,7 +151,12 @@ const createInvoiceSchema = Joi.object({
 
 // POST /api/payroll/calculate (generate payroll)
 const generatePayrollSchema = Joi.object({
-  employee_ids: Joi.array().items(Joi.number().integer().positive()).optional().allow(null),
+  entries: Joi.array().items(
+    Joi.object({
+      employee_id: Joi.number().integer().positive().required(),
+      days_worked: Joi.number().min(0).max(62).required()
+    })
+  ).required(),
   month: Joi.string()
     .pattern(/^\d{4}-\d{2}-\d{2}$/)
     .required()
@@ -170,11 +167,12 @@ const generatePayrollSchema = Joi.object({
 // POST /api/invoices/:id/payment
 const recordPaymentSchema = Joi.object({
   amount_paid: positiveDecimal.required().label('Amount paid'),
+  tds_deducted: Joi.number().min(0).optional().allow(null, '').default(0).label('TDS Deducted'),
   payment_date: Joi.date().iso().optional().allow('', null).label('Payment date'),
   payment_method: Joi.string()
-    .valid('cash', 'bank_transfer', 'cheque', 'upi', 'online')
+    .valid('cash', 'bank_transfer', 'cheque', 'upi', 'online', 'card')
     .required()
-    .messages({ 'any.only': 'Payment method must be one of: cash, bank_transfer, cheque, upi, online' })
+    .messages({ 'any.only': 'Payment method must be one of: cash, bank_transfer, cheque, upi, online, card' })
     .label('Payment method'),
   transaction_reference: Joi.string().max(200).optional().allow('', null).label('Transaction reference'),
   notes: Joi.string().max(1000).optional().allow('', null).label('Notes'),
@@ -184,7 +182,7 @@ const recordPaymentSchema = Joi.object({
 const createExpenseSchema = Joi.object({
   expense_date: Joi.date().iso().required().label('Expense date'),
   category: Joi.string()
-    .valid('salary', 'equipment', 'vehicle', 'office', 'training', 'miscellaneous', 'other')
+    .min(1).max(100)
     .required()
     .label('Category'),
   description: Joi.string().min(3).max(500).required().label('Description'),
@@ -193,7 +191,7 @@ const createExpenseSchema = Joi.object({
     .valid('cash', 'bank_transfer', 'cheque', 'upi', 'online', 'other')
     .required()
     .label('Payment method'),
-  vendor_name: Joi.string().max(200).optional().allow('', null).label('Vendor name'),
+  vendor_id: Joi.number().integer().optional().allow(null, '').label('Vendor ID'),
   receipt_number: Joi.string().max(100).optional().allow('', null).label('Receipt number'),
   invoice_reference: Joi.string().max(200).optional().allow('', null).label('Invoice reference'),
   notes: Joi.string().max(2000).optional().allow('', null).label('Notes'),
@@ -201,7 +199,7 @@ const createExpenseSchema = Joi.object({
 
 // POST /api/auth/login
 const loginSchema = Joi.object({
-  username: Joi.string().alphanum().min(3).max(50).required().label('Username'),
+  email: Joi.string().email({ tlds: { allow: false } }).required().label('Email'),
   password: Joi.string().min(6).max(200).required().label('Password'),
 });
 
