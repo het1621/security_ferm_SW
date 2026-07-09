@@ -13,6 +13,9 @@ import {
   Settings,
   Archive,
   Wallet,
+  BookOpen,
+  BarChart3,
+  Landmark,
   X
 } from 'lucide-react';
 import classNames from 'classnames';
@@ -30,6 +33,9 @@ const navItems = [
   { name: 'Tax Reports', path: '/tax-reports', icon: Receipt, roles: ['admin', 'manager', 'accountant'] },
   { name: 'Statement Archive', path: '/statements', icon: Archive, roles: ['admin', 'manager', 'accountant'] },
   { name: 'P&L Account', path: '/pl-account', icon: Wallet, roles: ['admin'] },
+  { name: 'Balance Sheet', path: '/balance-sheet', icon: BarChart3, roles: ['admin', 'accountant'] },
+  { name: 'Vouchers', path: '/vouchers', icon: BookOpen, roles: ['admin', 'accountant'] },
+  { name: 'Bank Reconciliation', path: '/bank-reconciliation', icon: Landmark, roles: ['admin', 'accountant'] },
   { name: 'divider' },
   { name: 'Settings', path: '/settings', icon: Settings, roles: ['admin'] },
 ];

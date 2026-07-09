@@ -62,3 +62,7 @@ Thumbs.db
 # package-lock.json
 # yarn.lock
 # pnpm-lock.yaml
+
+# Local databases & media reports
+database.sqlite
+*.pdf

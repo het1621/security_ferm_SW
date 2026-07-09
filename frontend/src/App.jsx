@@ -20,6 +20,9 @@ import TaxReports from './pages/TaxReports';
 import Settings from './pages/Settings';
 import StatementArchive from './pages/StatementArchive';
 import PLAccount from './pages/PLAccount';
+import Vouchers from './pages/Vouchers';
+import BalanceSheet from './pages/BalanceSheet';
+import BankReconciliation from './pages/BankReconciliation';
 import DeveloperConsole from './pages/DeveloperConsole';
 
 function App() {
@@ -45,6 +48,9 @@ function App() {
             <Route path="/tax-reports" element={<TaxReports />} />
             <Route path="/statements" element={<StatementArchive />} />
             <Route path="/pl-account" element={<PLAccount />} />
+            <Route path="/vouchers" element={<Vouchers />} />
+            <Route path="/balance-sheet" element={<BalanceSheet />} />
+            <Route path="/bank-reconciliation" element={<BankReconciliation />} />
             <Route path="/settings" element={<Settings />} />
           </Route>
         </Routes>
