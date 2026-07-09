@@ -23,6 +23,15 @@ function up(db) {
       db.exec(`ALTER TABLE invoices ADD COLUMN ${col.name} ${col.definition};`);
     }
   }
+
+  // Check and fix users table
+  const userColumns = db.prepare("PRAGMA table_info(users)").all();
+  const existingUserCols = userColumns.map(c => c.name);
+
+  if (!existingUserCols.includes('permissions')) {
+    console.log('     -> Adding missing column "permissions" to users table...');
+    db.exec('ALTER TABLE users ADD COLUMN permissions TEXT;');
+  }
 }
 
 module.exports = { up };
