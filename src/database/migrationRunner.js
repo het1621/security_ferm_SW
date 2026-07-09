@@ -51,7 +51,7 @@ function runMigrations(db) {
   }
 
   const migrationFiles = fs.readdirSync(MIGRATIONS_DIR)
-    .filter(f => f.endsWith('.sql'))
+    .filter(f => f.endsWith('.sql') || f.endsWith('.js'))
     .sort() // Ensures 001, 002, 003 order
     .map(f => {
       const match = f.match(/^(\d+)_/);
@@ -73,12 +73,25 @@ function runMigrations(db) {
   for (const migration of migrationFiles) {
     console.log(`   ⬆ Running migration ${migration.filename}...`);
 
-    const sql = fs.readFileSync(migration.path, 'utf8');
-
     try {
       // Run the entire migration in a transaction for safety
       db.exec('BEGIN TRANSACTION');
-      db.exec(sql);
+
+      if (migration.filename.endsWith('.js')) {
+        // Run JavaScript programmatic migration
+        const run = require(migration.path);
+        if (typeof run === 'function') {
+          run(db);
+        } else if (run && typeof run.up === 'function') {
+          run.up(db);
+        } else {
+          throw new Error('JS migration must export a function or an object with an "up" function');
+        }
+      } else {
+        // Run SQL migration
+        const sql = fs.readFileSync(migration.path, 'utf8');
+        db.exec(sql);
+      }
 
       // Update schema version
       db.prepare(`
