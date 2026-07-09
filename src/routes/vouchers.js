@@ -144,8 +144,8 @@ router.get('/', async (req, res) => {
       SELECT v.*,
              da.account_name as debit_account_name,
              ca.account_name as credit_account_name,
-             cu.username as created_by_name,
-             au.username as approved_by_name
+             cu.full_name as created_by_name,
+             au.full_name as approved_by_name
       FROM vouchers v
       LEFT JOIN bank_accounts da ON v.debit_account_id = da.id
       LEFT JOIN bank_accounts ca ON v.credit_account_id = ca.id
@@ -258,8 +258,8 @@ router.get('/:id', async (req, res) => {
       SELECT v.*,
              da.account_name as debit_account_name,
              ca.account_name as credit_account_name,
-             cu.username as created_by_name,
-             au.username as approved_by_name
+             cu.full_name as created_by_name,
+             au.full_name as approved_by_name
       FROM vouchers v
       LEFT JOIN bank_accounts da ON v.debit_account_id = da.id
       LEFT JOIN bank_accounts ca ON v.credit_account_id = ca.id

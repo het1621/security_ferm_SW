@@ -33,7 +33,7 @@ router.get('/', async (req, res) => {
 
     const result = await query(`
       SELECT ba.*,
-             u.username as created_by_name,
+             u.full_name as created_by_name,
              COALESCE(ba.opening_balance, 0) +
                COALESCE((SELECT SUM(v.amount) FROM vouchers v WHERE v.debit_account_id = ba.id AND v.status = 'posted'), 0) -
                COALESCE((SELECT SUM(v.amount) FROM vouchers v WHERE v.credit_account_id = ba.id AND v.status = 'posted'), 0)
@@ -206,7 +206,7 @@ router.get('/:id/statement', async (req, res) => {
       SELECT v.*,
              CASE WHEN v.debit_account_id = $1 THEN v.amount ELSE 0 END as debit_amount,
              CASE WHEN v.credit_account_id = $2 THEN v.amount ELSE 0 END as credit_amount,
-             u.username as created_by_name
+             u.full_name as created_by_name
       FROM vouchers v
       LEFT JOIN users u ON v.created_by = u.id
       WHERE (v.debit_account_id = $1 OR v.credit_account_id = $2)
