@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Firm Management Software - V1.2.2</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Playfair+Display:wght@700&display=swap');
+        
+        :root {
+            --primary: #1e3a8a;
+            --primary-light: #3b82f6;
+            --secondary: #0f172a;
+            --accent: #f59e0b;
+            --bg-light: #f8fafc;
+            --text-main: #334155;
+            --text-muted: #64748b;
+            --page-width: 1200px;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #e2e8f0;
+            color: var(--text-main);
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            -webkit-print-color-adjust: exact;
+        }
+
+        .page {
+            width: var(--page-width);
+            margin: 40px auto;
+            background: white;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+            overflow: hidden;
+            border-radius: 12px;
+            page-break-after: always;
+            position: relative;
+        }
+
+        @media print {
+            body { background: white; }
+            .page { 
+                margin: 0; 
+                box-shadow: none; 
+                border-radius: 0; 
+                width: 100%;
+                page-break-after: always;
+            }
+        }
+
+        /* Cover Page */
+        .cover {
+            height: 1697px; /* A4 aspect ratio roughly */
+            background: linear-gradient(135deg, var(--secondary) 0%, var(--primary) 100%);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 100px;
+        }
+        .cover h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 5rem;
+            margin-bottom: 20px;
+            letter-spacing: -1px;
+            line-height: 1.1;
+        }
+        .cover h2 {
+            color: var(--accent);
+            font-size: 2.5rem;
+            font-weight: 400;
+            margin-bottom: 60px;
+        }
+        .cover .badge {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 15px 40px;
+            border-radius: 50px;
+            font-size: 1.5rem;
+            backdrop-filter: blur(10px);
+            margin-bottom: 80px;
+        }
+        .cover .meta {
+            margin-top: auto;
+            border-top: 1px solid rgba(255,255,255,0.2);
+            padding-top: 40px;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            font-size: 1.2rem;
+            opacity: 0.8;
+        }
+
+        /* Content Pages */
+        .content-page {
+            padding: 80px 100px;
+            min-height: 1500px;
+        }
+
+        .header {
+            border-bottom: 3px solid var(--primary);
+            padding-bottom: 20px;
+            margin-bottom: 50px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        h2 {
+            font-family: 'Playfair Display', serif;
+            color: var(--secondary);
+            font-size: 3.5rem;
+            margin: 0;
+            line-height: 1.2;
+        }
+
+        h3 {
+            color: var(--primary);
+            font-size: 2rem;
+            margin-top: 40px;
+            margin-bottom: 20px;
+        }
+
+        p {
+            font-size: 1.3rem;
+            margin-bottom: 25px;
+        }
+
+        ul {
+            font-size: 1.3rem;
+            margin-bottom: 30px;
+            padding-left: 30px;
+        }
+        li {
+            margin-bottom: 12px;
+        }
+
+        .screenshot {
+            width: 100%;
+            border-radius: 12px;
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+            margin: 40px 0;
+            border: 1px solid #e2e8f0;
+        }
+
+        .alert {
+            background: #fffbeb;
+            border-left: 6px solid var(--accent);
+            padding: 30px;
+            border-radius: 0 12px 12px 0;
+            margin: 40px 0;
+        }
+        .alert-title {
+            font-weight: 800;
+            color: #b45309;
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .table-container {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 40px 0;
+            font-size: 1.2rem;
+        }
+        th {
+            background: var(--bg-light);
+            color: var(--secondary);
+            text-align: left;
+            padding: 20px;
+            border-bottom: 2px solid #cbd5e1;
+            font-weight: 700;
+        }
+        td {
+            padding: 20px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+        }
+
+        .feature-box {
+            background: var(--bg-light);
+            padding: 30px;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .new-badge {
+            background: #ef4444;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 1rem;
+            font-weight: bold;
+            vertical-align: middle;
+            margin-left: 15px;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Cover Page -->
+    <div class="page cover">
+        <h1>SecurManage</h1>
+        <h2>Enterprise Management Platform</h2>
+        <div class="badge">Version 1.2.2 - ERP Edition</div>
+        
+        <div style="margin-top: 60px; font-size: 1.5rem; font-weight: 300; max-width: 800px;">
+            The complete, offline-first operating system for modern Security Agencies in India. 
+            Now featuring Enterprise double-entry accounting.
+        </div>
+
+        <div class="meta">
+            <span>Prepared for: Eagle Eye Security Service</span>
+            <span>Date: July 2026</span>
+        </div>
+    </div>
+
+    <!-- Executive Summary -->
+    <div class="page content-page">
+        <div class="header">
+            <h2>Executive Summary</h2>
+            <span style="color: var(--text-muted); font-size: 1.5rem; font-weight: bold;">01</span>
+        </div>
+        
+        <p class="lead" style="font-size: 1.8rem; color: var(--secondary); font-weight: 300; line-height: 1.5;">
+            The Security Firm Management Software is a complete, end-to-end enterprise platform purpose-built for security agencies. It replaces fragmented Excel sheets, WhatsApp coordination, and manual ledger books with a single, beautiful, offline-capable desktop application.
+        </p>
+
+        <div class="alert" style="background: #eff6ff; border-left-color: var(--primary-light);">
+            <div class="alert-title" style="color: var(--primary);">What's New in Version 1.2.2</div>
+            <p style="margin-bottom: 0;">Version 1.2.2 introduces three major financial modules that transform SecurManage from a billing & attendance tool into a complete Enterprise Resource Planning (ERP) system with full double-entry accounting capabilities.</p>
+        </div>
+
+        <table class="table-container">
+            <tr>
+                <th style="width: 30%;">New Feature</th>
+                <th>What It Enables</th>
+            </tr>
+            <tr>
+                <td><strong>Balance Sheet</strong></td>
+                <td>Real-time Statement of Assets & Liabilities — instant financial health snapshot</td>
+            </tr>
+            <tr>
+                <td><strong>Voucher System</strong></td>
+                <td>Professional double-entry accounting with Cash, Bank, Journal, Contra, Debit & Credit Notes</td>
+            </tr>
+            <tr>
+                <td><strong>Bank Reconciliation</strong></td>
+                <td>Match software records against bank statements to verify every single rupee</td>
+            </tr>
+        </table>
+
+        <h3>Why These Features Matter</h3>
+        <ul>
+            <li><strong>Eliminate Tally/QuickBooks</strong> — No more paying for separate accounting software</li>
+            <li><strong>Loan-Ready Reports</strong> — Generate a Balance Sheet instantly when a bank asks for one</li>
+            <li><strong>CA-Compliant</strong> — Your Chartered Accountant can audit directly from the software</li>
+            <li><strong>Fraud Protection</strong> — Bank Reconciliation catches data-entry mistakes and internal fraud</li>
+        </ul>
+    </div>
+
+    <!-- Balance Sheet -->
+    <div class="page content-page">
+        <div class="header">
+            <h2>1. Balance Sheet <span class="new-badge">New in v1.2.2</span></h2>
+            <span style="color: var(--text-muted); font-size: 1.5rem; font-weight: bold;">02</span>
+        </div>
+
+        <p>A real-time Balance Sheet — the most important financial document any business can produce. It shows a complete snapshot of your agency's financial position at any given moment.</p>
+
+        <img src="presentation_assets/balance_sheet.png" alt="Balance Sheet" class="screenshot">
+
+        <div class="alert">
+            <div class="alert-title">Crucial Business Value</div>
+            <p style="margin-bottom: 0;">The Balance Sheet is the document that <strong>banks require</strong> when you apply for a business loan. It is also the primary document your Chartered Accountant needs for annual tax filing. Generate it in one click instead of paying your CA to compile it manually.</p>
+        </div>
+
+        <div class="two-col">
+            <div class="feature-box">
+                <h4 style="color: var(--primary); font-size: 1.4rem; margin-top:0;">Liabilities Side</h4>
+                <ul>
+                    <li><strong>Capital & Reserves:</strong> Owner's equity and retained profits</li>
+                    <li><strong>Current Liabilities:</strong> Pending salaries</li>
+                    <li><strong>Accounts Payable:</strong> Outstanding vendor payments</li>
+                </ul>
+            </div>
+            <div class="feature-box">
+                <h4 style="color: var(--primary); font-size: 1.4rem; margin-top:0;">Assets Side</h4>
+                <ul>
+                    <li><strong>Fixed Assets:</strong> Equipment, vehicles, computers</li>
+                    <li><strong>Accounts Receivable:</strong> Unpaid client invoices</li>
+                    <li><strong>Bank Balances:</strong> Real-time liquid cash</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Voucher System -->
+    <div class="page content-page">
+        <div class="header">
+            <h2>2. Universal Vouchers <span class="new-badge">New in v1.2.2</span></h2>
+            <span style="color: var(--text-muted); font-size: 1.5rem; font-weight: bold;">03</span>
+        </div>
+
+        <p>A professional, double-entry accounting system with 8 specialized voucher types — the backbone of accurate financial recording in any business.</p>
+
+        <img src="presentation_assets/vouchers.png" alt="Vouchers" class="screenshot">
+
+        <h3>The 8 Voucher Types</h3>
+        <table class="table-container">
+            <tr>
+                <th style="width: 25%;">Voucher Type</th>
+                <th>When To Use It (Real-World Example)</th>
+            </tr>
+            <tr>
+                <td><strong>Cash Payment</strong></td>
+                <td>Paying ₹1,500 to a stationery shop for office supplies</td>
+            </tr>
+            <tr>
+                <td><strong>Bank Receipt</strong></td>
+                <td>Client transfers ₹55,000 invoice payment to your HDFC account</td>
+            </tr>
+            <tr>
+                <td><strong>Contra</strong></td>
+                <td>Depositing ₹10,000 physical cash into your bank account</td>
+            </tr>
+            <tr>
+                <td><strong>Journal Entry</strong></td>
+                <td>Recording ₹2,000 depreciation on office computers</td>
+            </tr>
+            <tr>
+                <td><strong>Credit Note</strong></td>
+                <td>Giving ₹3,000 discount for a service interruption</td>
+            </tr>
+        </table>
+        
+        <p><strong>Strict Approval Workflow:</strong> Every voucher goes through a secure lifecycle: Draft → Pending Approval → Posted. Once posted, it becomes a permanent immutable record in your ledger.</p>
+    </div>
+
+    <!-- Bank Reconciliation -->
+    <div class="page content-page">
+        <div class="header">
+            <h2>3. Bank Reconciliation <span class="new-badge">New in v1.2.2</span></h2>
+            <span style="color: var(--text-muted); font-size: 1.5rem; font-weight: bold;">04</span>
+        </div>
+
+        <p>A bank reconciliation tool that ensures your software's records match your actual bank statement — the ultimate accuracy check for your finances.</p>
+
+        <img src="presentation_assets/bank_recon.png" alt="Bank Reconciliation" class="screenshot">
+
+        <div class="alert">
+            <div class="alert-title">The Proof of Truth</div>
+            <p style="margin-bottom: 0;">When your Balance Sheet says you have ₹5,00,000 in the bank, Bank Reconciliation <strong>verifies</strong> that this number matches reality by checking against your HDFC or SBI bank statement. Without it, errors go undetected.</p>
+        </div>
+
+        <h3>Reconciliation Workflow</h3>
+        <ul>
+            <li><strong>Download</strong> your monthly bank statement PDF from HDFC/SBI</li>
+            <li><strong>Select</strong> the corresponding bank account in the software</li>
+            <li><strong>Compare</strong> each voucher against the bank statement line-by-line</li>
+            <li><strong>Reconcile:</strong> Check the box next to matching transactions to permanently verify them</li>
+        </ul>
+
+        <h3>Common Discrepancies Handled Automatically</h3>
+        <p>Easily identify cheques that haven't cleared yet, hidden bank maintenance charges, or simple data entry typos.</p>
+    </div>
+
+    <!-- Core Features Overview -->
+    <div class="page content-page">
+        <div class="header">
+            <h2>4. Core Operations Suite</h2>
+            <span style="color: var(--text-muted); font-size: 1.5rem; font-weight: bold;">05</span>
+        </div>
+
+        <p>In addition to the new ERP capabilities, SecurManage continues to provide industry-leading operational tools for your security agency.</p>
+
+        <img src="presentation_assets/dashboard.png" alt="Dashboard" class="screenshot" style="margin-bottom: 20px;">
+        <p style="text-align: center; font-size: 1.1rem; color: var(--text-muted); margin-bottom: 50px;">The Command Center Dashboard</p>
+
+        <div class="two-col">
+            <div class="feature-box">
+                <h4 style="color: var(--primary); font-size: 1.5rem; margin-top:0;">👥 Employee Management</h4>
+                <p style="font-size: 1.1rem;">Complete guard roster with Aadhaar, PAN, and Bank details. Upload and store police verification documents securely offline.</p>
+            </div>
+            <div class="feature-box">
+                <h4 style="color: var(--primary); font-size: 1.5rem; margin-top:0;">📅 Attendance Tracking</h4>
+                <p style="font-size: 1.1rem;">Calendar-based daily tracking across all client sites. Bulk marking functionality saves 30+ minutes of manual entry daily.</p>
+            </div>
+            <div class="feature-box">
+                <h4 style="color: var(--primary); font-size: 1.5rem; margin-top:0;">🧾 GST Invoicing</h4>
+                <p style="font-size: 1.1rem;">Generate court-ready tax invoices in one click. Automatically calculates CGST/SGST and outputs beautifully branded PDFs.</p>
+            </div>
+            <div class="feature-box">
+                <h4 style="color: var(--primary); font-size: 1.5rem; margin-top:0;">💵 Automated Payroll</h4>
+                <p style="font-size: 1.1rem;">One-click salary generation. Cross-references attendance, applies PF/ESI deductions, and generates PDF payslips instantly.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Security & Architecture -->
+    <div class="page content-page">
+        <div class="header">
+            <h2>5. Security & Architecture</h2>
+            <span style="color: var(--text-muted); font-size: 1.5rem; font-weight: bold;">06</span>
+        </div>
+
+        <p>The software implements enterprise-grade security suitable for handling sensitive employee and financial data.</p>
+
+        <h3>100% Offline Architecture</h3>
+        <p>Your agency's data is your most valuable asset. SecurManage stores everything locally on your PC in a secure SQLite database. It works perfectly without an internet connection, ensuring complete data privacy and zero cloud subscription fees.</p>
+
+        <h3>Granular Team Access Control</h3>
+        <p>Ensure each team member only sees what they need:</p>
+        <ul>
+            <li><strong>Office Manager:</strong> Manage Attendance, Employees, Payroll. (Cannot see profits)</li>
+            <li><strong>Accountant:</strong> Manage Invoices, Vouchers, Bank Reconciliation, Balance Sheet.</li>
+            <li><strong>Site Supervisor:</strong> Only mark attendance.</li>
+        </ul>
+
+        <h3>Hidden Developer Console</h3>
+        <p>A Matrix-style console silently captures every application error in the background. It provides stack traces and debugging information without ever interrupting the user experience for your staff.</p>
+
+        <div class="alert" style="background: #f0fdf4; border-left-color: #16a34a; margin-top: 60px;">
+            <div class="alert-title" style="color: #15803d;">Seamless Auto-Updates</div>
+            <p style="margin-bottom: 0;">SecurManage checks for updates automatically and downloads them in the background. When you close the app, it updates instantly with zero downtime. <strong>Your database is completely isolated and always safe during updates.</strong></p>
+        </div>
+
+        <div style="text-align: center; margin-top: 100px; padding-top: 40px; border-top: 1px solid #e2e8f0;">
+            <p style="font-size: 1.1rem; color: var(--text-muted);">© 2026 Security Firm Management Software. All rights reserved.</p>
+        </div>
+    </div>
+
+</body>
+</html>
