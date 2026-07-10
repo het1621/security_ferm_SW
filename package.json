@@ -56,7 +56,8 @@
     "csv-parser": "^3.2.1",
     "decimal.js": "^10.6.0",
     "dotenv": "^17.4.2",
-    "exceljs": "^4.4.0",
+    "electron-updater": "^6.3.0",
+    "exceljs": "^3.4.0",
     "express": "^5.2.1",
     "express-rate-limit": "^8.5.2",
     "helmet": "^8.2.0",
@@ -66,11 +67,10 @@
     "morgan": "^1.10.1",
     "multer": "^2.1.1",
     "node-cron": "^4.2.1",
-    "nodemailer": "^8.0.10",
+    "nodemailer": "^9.0.3",
     "number-to-words": "^1.2.4",
     "pdfkit": "^0.18.0",
     "sqlite3": "^6.0.1",
-    "electron-updater": "^6.3.0",
     "uuid": "^14.0.0"
   },
   "devDependencies": {

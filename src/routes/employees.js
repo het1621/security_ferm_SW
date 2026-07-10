@@ -80,9 +80,24 @@ router.get('/', async (req, res) => {
 
     const countResult = await query(`SELECT COUNT(*) AS count FROM employees e ${where}`, params);
 
+    const maskedRows = result.rows.map(emp => {
+      if (req.query.reveal !== 'true') {
+        if (emp.aadhar_number && emp.aadhar_number.length >= 4) {
+          emp.aadhar_number = 'XXXX-XXXX-' + emp.aadhar_number.slice(-4);
+        }
+        if (emp.pan_number && emp.pan_number.length >= 4) {
+          emp.pan_number = 'XXXXX' + emp.pan_number.slice(-4);
+        }
+        if (emp.bank_account_number && emp.bank_account_number.length >= 4) {
+          emp.bank_account_number = 'XXXXX' + emp.bank_account_number.slice(-4);
+        }
+      }
+      return emp;
+    });
+
     res.json({
       success: true,
-      data: result.rows,
+      data: maskedRows,
       pagination: { total: parseInt(countResult.rows[0].count), page: parseInt(page), limit: parseInt(limit) }
     });
   } catch (error) {
