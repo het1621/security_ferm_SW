@@ -1,3 +1,4 @@
+const logger = require('../utils/logger.js');
 const express = require('express');
 const router = express.Router();
 const { query } = require('../database/connection');
@@ -13,7 +14,7 @@ router.get('/', async (req, res) => {
     res.json({ success: true, data: result.rows });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'vendors' });
-    console.error('Get vendors error:', error);
+    logger.error('Get vendors error:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch vendors' });
   }
 });
@@ -33,7 +34,7 @@ router.post('/', async (req, res) => {
     res.status(201).json({ success: true, data: result.rows[0], message: 'Vendor created successfully' });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'vendors' });
-    console.error('Create vendor error:', error);
+    logger.error('Create vendor error:', error);
     res.status(500).json({ success: false, message: 'Failed to create vendor' });
   }
 });
@@ -49,7 +50,7 @@ router.put('/:id', async (req, res) => {
     res.json({ success: true, data: result.rows[0], message: 'Vendor updated successfully' });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'vendors' });
-    console.error('Update vendor error:', error);
+    logger.error('Update vendor error:', error);
     res.status(500).json({ success: false, message: 'Failed to update vendor' });
   }
 });
@@ -110,7 +111,7 @@ router.get('/:id/statement', async (req, res) => {
 
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'vendors' });
-    console.error('Get vendor statement error:', error);
+    logger.error('Get vendor statement error:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch vendor statement' });
   }
 });

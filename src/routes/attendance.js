@@ -1,3 +1,4 @@
+const logger = require('../utils/logger.js');
 const express = require('express');
 const router = express.Router();
 const { query } = require('../database/connection');
@@ -55,7 +56,7 @@ router.get('/', async (req, res) => {
     });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'attendance' });
-    console.error('Get attendance error:', error);
+    logger.error('Get attendance error:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch attendance' });
   }
 });
@@ -93,7 +94,7 @@ router.post('/', async (req, res) => {
     res.status(201).json({ success: true, data: result.rows[0], message: 'Attendance marked successfully' });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'attendance' });
-    console.error('Mark attendance error:', error);
+    logger.error('Mark attendance error:', error);
     res.status(500).json({ success: false, message: 'Failed to mark attendance' });
   }
 });
@@ -250,7 +251,7 @@ router.post('/bulk-upload', upload.single('file'), (req, res) => {
       if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
       } catch (err) {
     logError(err, typeof req !== 'undefined' ? req : {}, { feature: 'attendance' });
-        console.error('Bulk upload error:', err);
+        logger.error('Bulk upload error:', err);
         if (!res.headersSent) {
           res.status(500).json({ success: false, message: 'An error occurred during bulk processing' });
         }

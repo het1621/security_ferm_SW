@@ -1,3 +1,4 @@
+const logger = require('../utils/logger.js');
 const fs = require('fs');
 const path = require('path');
 const Database = require('better-sqlite3');
@@ -14,18 +15,18 @@ let db;
 
 function initDB() {
   const dbExists = fs.existsSync(dbPath);
-  db = new Database(dbPath, { verbose: isDev ? console.log : null });
+  db = new Database(dbPath, { verbose: isDev ? logger.info : null });
   
   // Enable foreign keys
   db.pragma('foreign_keys = ON');
 
   if (!dbExists) {
-    console.log('database.sqlite not found. Initializing new database...');
+    logger.info('database.sqlite not found. Initializing new database...');
     const schemaPath = path.join(__dirname, 'schema.sql');
     if (fs.existsSync(schemaPath)) {
       const schemaSql = fs.readFileSync(schemaPath, 'utf8');
       db.exec(schemaSql);
-      console.log('Database initialized with schema.sql');
+      logger.info('Database initialized with schema.sql');
       
       // Ensure seed admin data
       try {
@@ -37,23 +38,23 @@ function initDB() {
             VALUES (?, ?, ?, ?, 1)
           `);
           insertUser.run('admin@admin.com', hash, 'System Administrator', 'admin');
-          console.log('Seed Admin user created: admin@admin.com / password123');
+          logger.info('Seed Admin user created: admin@admin.com / password123');
         }
       } catch (err) {
-        console.error('Error seeding admin user:', err);
+        logger.error('Error seeding admin user:', err);
       }
     } else {
-      console.error('schema.sql not found at', schemaPath);
+      logger.error('schema.sql not found at', schemaPath);
     }
   } else {
-    console.log('✅ Database connected successfully (SQLite)');
+    logger.info('✅ Database connected successfully (SQLite)');
   }
 
   // Run pending migrations (safe on both new and existing databases)
   try {
     runMigrations(db);
   } catch (err) {
-    console.error('⚠ Migration runner error (non-fatal):', err.message);
+    logger.error('⚠ Migration runner error (non-fatal):', err.message);
   }
 }
 
@@ -139,12 +140,12 @@ const query = async (text, params = []) => {
 
     const duration = Date.now() - start;
     if (isDev && duration > 1000) {
-      console.warn('Slow query detected:', { text, duration, rows: res.rowCount });
+      logger.warn('Slow query detected:', { text, duration, rows: res.rowCount });
     }
     
     return res;
   } catch (error) {
-    console.error('Database query error:', error.message, '| Query:', text);
+    logger.error('Database query error:', error.message, '| Query:', text);
     throw error;
   }
 };

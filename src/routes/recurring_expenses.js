@@ -1,3 +1,4 @@
+const logger = require('../utils/logger.js');
 const express = require('express');
 const router = express.Router();
 const { query } = require('../database/connection');
@@ -20,7 +21,7 @@ router.get('/', async (req, res) => {
     res.json({ success: true, data: result.rows });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'recurring_expenses' });
-    console.error('Get recurring expenses error:', error);
+    logger.error('Get recurring expenses error:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch recurring expenses' });
   }
 });
@@ -43,7 +44,7 @@ router.post('/', async (req, res) => {
     res.status(201).json({ success: true, data: result.rows[0], message: 'Recurring expense created' });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'recurring_expenses' });
-    console.error('Create recurring expense error:', error);
+    logger.error('Create recurring expense error:', error);
     res.status(500).json({ success: false, message: 'Failed to create recurring expense' });
   }
 });

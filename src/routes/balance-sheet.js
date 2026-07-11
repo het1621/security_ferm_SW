@@ -1,3 +1,4 @@
+const logger = require('../utils/logger.js');
 const express = require('express');
 const router = express.Router();
 const { query } = require('../database/connection');
@@ -35,7 +36,7 @@ router.get('/', async (req, res) => {
     });
   } catch (error) {
     logError(error, req, { feature: 'balance-sheet' });
-    console.error('Balance sheet error:', error);
+    logger.error('Balance sheet error:', error);
     res.status(500).json({ success: false, message: 'Failed to generate balance sheet' });
   }
 });

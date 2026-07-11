@@ -1,3 +1,4 @@
+const logger = require('../utils/logger.js');
 const express = require('express');
 const router = express.Router();
 const { query } = require('../database/connection');
@@ -47,7 +48,7 @@ router.get('/', async (req, res) => {
     res.json({ success: true, data: result.rows });
   } catch (error) {
     logError(error, req, { feature: 'bank-accounts' });
-    console.error('Fetch bank accounts error:', error);
+    logger.error('Fetch bank accounts error:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch bank accounts' });
   }
 });
@@ -100,7 +101,7 @@ router.post('/', async (req, res) => {
     res.status(201).json({ success: true, data: result.rows[0], message: 'Bank account created successfully' });
   } catch (error) {
     logError(error, req, { feature: 'bank-accounts' });
-    console.error('Create bank account error:', error);
+    logger.error('Create bank account error:', error);
     res.status(500).json({ success: false, message: 'Failed to create bank account' });
   }
 });

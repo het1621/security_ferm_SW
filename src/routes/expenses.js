@@ -1,3 +1,4 @@
+const logger = require('../utils/logger.js');
 const express = require('express');
 const router = express.Router();
 const { query } = require('../database/connection');
@@ -58,7 +59,7 @@ router.get('/', async (req, res) => {
     });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'expenses' });
-    console.error('Get expenses error:', error);
+    logger.error('Get expenses error:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch expenses' });
   }
 });
@@ -70,7 +71,7 @@ router.get('/categories', async (req, res) => {
     res.json({ success: true, data: result.rows });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'expenses' });
-    console.error('Get expense categories error:', error);
+    logger.error('Get expense categories error:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch categories' });
   }
 });
@@ -335,7 +336,7 @@ router.post('/:id/pay', async (req, res) => {
     res.json({ success: true, data: result.rows[0], message: 'Payment recorded successfully' });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'expenses' });
-    console.error('Pay expense error:', error);
+    logger.error('Pay expense error:', error);
     res.status(500).json({ success: false, message: 'Failed to record payment' });
   }
 });

@@ -1,3 +1,4 @@
+const logger = require('../utils/logger.js');
 const express = require('express');
 const router = express.Router();
 const { query } = require('../database/connection');
@@ -137,7 +138,7 @@ router.get('/', async (req, res) => {
     });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'dashboard' });
-    console.error('Dashboard error:', error);
+    logger.error('Dashboard error:', error);
     res.status(500).json({ success: false, message: 'Failed to load dashboard data' });
   }
 });

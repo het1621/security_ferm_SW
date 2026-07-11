@@ -1,3 +1,4 @@
+const logger = require('./logger.js');
 const PDFDocument = require('pdfkit');
 const path = require('path');
 const fs = require('fs');
@@ -37,7 +38,7 @@ function generatePayslipPDF(payroll, employee, client, agencySettings, dataCallb
         doc.image(logoPath, 50, 50, { fit: [80, 50], align: 'left', valign: 'top' });
         hasLogo = true;
       } catch(e) {
-        console.error('Failed to embed logo in payslip PDF:', e);
+        logger.error('Failed to embed logo in payslip PDF:', e);
       }
     }
   }

@@ -1,17 +1,18 @@
+const logger = require('./logger.js');
 const cron = require('node-cron');
 const { query } = require('../database/connection');
 
 // Auto-generate invoices on the 1st of every month at 00:01 AM
 const startScheduledJobs = () => {
   cron.schedule('1 0 1 * *', async () => {
-    console.log('⏳ [CRON] Running monthly auto-invoice generation...');
+    logger.info('⏳ [CRON] Running monthly auto-invoice generation...');
     try {
       // 1. Fetch active clients
       const clientsResult = await query('SELECT * FROM clients WHERE is_active = true');
       const activeClients = clientsResult.rows;
 
       if (activeClients.length === 0) {
-        console.log('⏳ [CRON] No active clients found.');
+        logger.info('⏳ [CRON] No active clients found.');
         return;
       }
 
@@ -66,14 +67,14 @@ const startScheduledJobs = () => {
           );
           createdCount++;
         } catch (err) {
-          console.error(`⏳ [CRON] Error creating invoice for client ${client.id}:`, err);
+          logger.error(`⏳ [CRON] Error creating invoice for client ${client.id}:`, err);
           errorCount++;
         }
       }
 
-      console.log(`✅ [CRON] Invoice generation completed: ${createdCount} created, ${skippedCount} skipped (already exist), ${errorCount} errors.`);
+      logger.info(`✅ [CRON] Invoice generation completed: ${createdCount} created, ${skippedCount} skipped (already exist), ${errorCount} errors.`);
     } catch (error) {
-      console.error('⏳ [CRON] Failed to run monthly invoice generation:', error);
+      logger.error('⏳ [CRON] Failed to run monthly invoice generation:', error);
     }
   });
 
@@ -87,10 +88,10 @@ const startScheduledJobs = () => {
            AND payment_due > 0`
       );
       if (result.rowCount > 0) {
-        console.log(`⏰ [CRON] Marked ${result.rowCount} invoice(s) as overdue.`);
+        logger.info(`⏰ [CRON] Marked ${result.rowCount} invoice(s) as overdue.`);
       }
     } catch (error) {
-      console.error('⏰ [CRON] Failed to update overdue invoices:', error);
+      logger.error('⏰ [CRON] Failed to update overdue invoices:', error);
     }
   });
   
@@ -130,14 +131,14 @@ const startScheduledJobs = () => {
         processed++;
       }
       if (processed > 0) {
-        console.log(`⏰ [CRON] Processed ${processed} recurring expenses.`);
+        logger.info(`⏰ [CRON] Processed ${processed} recurring expenses.`);
       }
     } catch (error) {
-      console.error('⏰ [CRON] Failed to process recurring expenses:', error);
+      logger.error('⏰ [CRON] Failed to process recurring expenses:', error);
     }
   });
 
-  console.log('⏰ Scheduled jobs initialized');
+  logger.info('⏰ Scheduled jobs initialized');
 };
 
 module.exports = { startScheduledJobs };

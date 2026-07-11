@@ -1,3 +1,4 @@
+const logger = require('../utils/logger.js');
 const express = require('express');
 const router = express.Router();
 const { query } = require('../database/connection');
@@ -48,7 +49,7 @@ router.get('/', async (req, res) => {
     });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'pl-account' });
-    console.error('P&L Account error:', error);
+    logger.error('P&L Account error:', error);
     res.status(500).json({ success: false, message: 'Failed to generate P&L statement' });
   }
 });
@@ -93,7 +94,7 @@ router.post('/generate', async (req, res) => {
     });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'pl-account' });
-    console.error('P&L generate error:', error);
+    logger.error('P&L generate error:', error);
     res.status(500).json({ success: false, message: 'Failed to generate P&L statement' });
   }
 });

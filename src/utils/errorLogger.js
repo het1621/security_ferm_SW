@@ -1,3 +1,4 @@
+const logger = require('./logger.js');
 /**
  * Centralized Error Logger
  * 
@@ -41,8 +42,8 @@ async function logError(error, req, context = {}) {
       ]
     );
   } catch (dbErr) {
-    // Never throw — just console.error as last resort
-    console.error('[ErrorLogger] Failed to write to error_logs:', dbErr.message);
+    // Never throw — just logger.error as last resort
+    logger.error('[ErrorLogger] Failed to write to error_logs:', dbErr.message);
   }
 }
 

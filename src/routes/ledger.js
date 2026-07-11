@@ -1,3 +1,4 @@
+const logger = require('../utils/logger.js');
 const express = require('express');
 const router = express.Router();
 const { query } = require('../database/connection');
@@ -69,7 +70,7 @@ router.get('/', async (req, res) => {
     });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'ledger' });
-    console.error('Fetch ledger error:', error);
+    logger.error('Fetch ledger error:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch ledger entries' });
   }
 });
@@ -100,7 +101,7 @@ router.post('/', async (req, res) => {
     res.status(201).json({ success: true, data: result.rows[0], message: 'Transaction recorded successfully' });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'ledger' });
-    console.error('Add ledger error:', error);
+    logger.error('Add ledger error:', error);
     res.status(500).json({ success: false, message: 'Failed to record transaction' });
   }
 });
@@ -120,7 +121,7 @@ router.delete('/:id', async (req, res) => {
     res.json({ success: true, message: 'Transaction deleted successfully' });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'ledger' });
-    console.error('Delete ledger error:', error);
+    logger.error('Delete ledger error:', error);
     res.status(500).json({ success: false, message: 'Failed to delete transaction' });
   }
 });

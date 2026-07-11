@@ -284,6 +284,25 @@ CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at);
 
 -- ============================================================
+-- 11. ERROR LOGS TABLE
+-- ============================================================
+CREATE TABLE IF NOT EXISTS error_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    error_type VARCHAR(100),
+    error_message TEXT,
+    stack_trace TEXT,
+    endpoint VARCHAR(500),
+    method VARCHAR(10),
+    user_id INTEGER,
+    client_ip VARCHAR(45),
+    additional_data TEXT,
+    is_resolved INTEGER DEFAULT 0,
+    resolved_by INTEGER,
+    resolved_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================
 -- DEFAULT ADMIN USER (password: Admin@123)
 -- ============================================================
 INSERT INTO users (email, password_hash, full_name, role)

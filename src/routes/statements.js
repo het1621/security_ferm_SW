@@ -1,3 +1,4 @@
+const logger = require('../utils/logger.js');
 const express = require('express');
 const router = express.Router();
 const { query } = require('../database/connection');
@@ -72,7 +73,7 @@ router.get('/', async (req, res) => {
     });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'statements' });
-    console.error('List statements error:', error);
+    logger.error('List statements error:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch statements' });
   }
 });
@@ -117,7 +118,7 @@ router.get('/export', async (req, res) => {
     res.send(csv);
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'statements' });
-    console.error('Export statements error:', error);
+    logger.error('Export statements error:', error);
     res.status(500).json({ success: false, message: 'Failed to export statements' });
   }
 });
@@ -133,7 +134,7 @@ router.get('/domain-counts', async (req, res) => {
     res.json({ success: true, data: counts });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'statements' });
-    console.error('Domain counts error:', error);
+    logger.error('Domain counts error:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch counts' });
   }
 });
@@ -162,7 +163,7 @@ router.get('/:id', async (req, res) => {
     res.json({ success: true, data: stmt });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'statements' });
-    console.error('Get statement error:', error);
+    logger.error('Get statement error:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch statement' });
   }
 });
@@ -177,7 +178,7 @@ router.delete('/:id', requireRole('admin'), async (req, res) => {
     res.json({ success: true, message: 'Statement archived' });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'statements' });
-    console.error('Archive statement error:', error);
+    logger.error('Archive statement error:', error);
     res.status(500).json({ success: false, message: 'Failed to archive statement' });
   }
 });

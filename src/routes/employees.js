@@ -1,3 +1,4 @@
+const logger = require('../utils/logger.js');
 const express = require('express');
 const router = express.Router();
 const { query } = require('../database/connection');
@@ -102,7 +103,7 @@ router.get('/', async (req, res) => {
     });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'employees' });
-    console.error('Get employees error:', error);
+    logger.error('Get employees error:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch employees' });
   }
 });
@@ -162,7 +163,7 @@ const { logError } = require('../utils/errorLogger');
     res.status(201).json({ success: true, data: result.rows[0], message: 'Employee created successfully' });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'employees' });
-    console.error('Create employee error:', error);
+    logger.error('Create employee error:', error);
     res.status(500).json({ success: false, message: 'Failed to create employee' });
   }
 });
@@ -201,7 +202,7 @@ router.put('/:id', validate(schemas.updateEmployee), async (req, res) => {
     res.json({ success: true, data: updated.rows[0], message: 'Employee updated successfully' });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'employees' });
-    console.error('Update employee error:', error);
+    logger.error('Update employee error:', error);
     res.status(500).json({ success: false, message: 'Failed to update employee' });
   }
 });
@@ -266,7 +267,7 @@ router.post('/:id/upload-doc', upload.single('document'), async (req, res) => {
     res.json({ success: true, message: 'Document uploaded successfully', data: result.rows[0] });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'employees' });
-    console.error('Upload document error:', error);
+    logger.error('Upload document error:', error);
     res.status(500).json({ success: false, message: error.message || 'Failed to upload document' });
   }
 });

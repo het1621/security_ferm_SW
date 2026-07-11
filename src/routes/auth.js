@@ -1,3 +1,4 @@
+const logger = require('../utils/logger.js');
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
@@ -72,7 +73,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'auth' });
-    console.error('Login error:', error);
+    logger.error('Login error:', error);
     res.status(500).json({ success: false, message: 'Login failed, please try again' });
   }
 });
@@ -128,7 +129,7 @@ router.put('/update-profile', authMiddleware, async (req, res) => {
     if (error.code === '23505' || (error.message && error.message.includes('UNIQUE'))) {
       return res.status(400).json({ success: false, message: 'Email already in use' });
     }
-    console.error('Update profile error:', error);
+    logger.error('Update profile error:', error);
     res.status(500).json({ success: false, message: 'Failed to update profile' });
   }
 });
@@ -246,7 +247,7 @@ router.post('/forgot-password', async (req, res) => {
     res.json({ success: true, message: 'If an account exists, a password reset email has been sent.' });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'auth' });
-    console.error('Forgot password error:', error);
+    logger.error('Forgot password error:', error);
     res.status(500).json({ success: false, message: 'Failed to process password reset request' });
   }
 });
@@ -284,7 +285,7 @@ router.post('/reset-password', async (req, res) => {
     res.json({ success: true, message: 'Password has been reset successfully. You can now login.' });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'auth' });
-    console.error('Reset password error:', error);
+    logger.error('Reset password error:', error);
     res.status(500).json({ success: false, message: 'Failed to reset password' });
   }
 });

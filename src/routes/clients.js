@@ -1,3 +1,4 @@
+const logger = require('../utils/logger.js');
 const express = require('express');
 const router = express.Router();
 const { query } = require('../database/connection');
@@ -58,7 +59,7 @@ router.get('/', async (req, res) => {
     });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'clients' });
-    console.error('Get clients error:', error);
+    logger.error('Get clients error:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch clients' });
   }
 });
@@ -141,7 +142,7 @@ router.put('/:id', validate(schemas.updateClient), async (req, res) => {
     res.json({ success: true, data: updated.rows[0], message: 'Client updated successfully' });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'clients' });
-    console.error('Update client error:', error);
+    logger.error('Update client error:', error);
     res.status(500).json({ success: false, message: 'Failed to update client' });
   }
 });
@@ -208,7 +209,7 @@ router.patch('/:id/renew', async (req, res) => {
     res.json({ success: true, message: 'Contract renewed successfully', data: updated.rows[0] });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'clients' });
-    console.error('Contract renewal error:', error);
+    logger.error('Contract renewal error:', error);
     res.status(500).json({ success: false, message: 'Failed to renew contract' });
   }
 });
@@ -271,7 +272,7 @@ router.get('/:id/statement', async (req, res) => {
     });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'clients' });
-    console.error('Statement error:', error);
+    logger.error('Statement error:', error);
     res.status(500).json({ success: false, message: 'Failed to generate statement' });
   }
 });

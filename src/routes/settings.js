@@ -1,3 +1,4 @@
+const logger = require('../utils/logger.js');
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
@@ -35,7 +36,7 @@ router.get('/salary-structures', async (req, res) => {
     res.json({ success: true, data: result.rows });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'settings' });
-    console.error('Fetch salary structures error:', error);
+    logger.error('Fetch salary structures error:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch salary structures' });
   }
 });
@@ -66,7 +67,7 @@ router.post('/salary-structures', async (req, res) => {
     res.status(201).json({ success: true, data: result.rows[0], message: 'Salary structure created' });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'settings' });
-    console.error('Create salary structure error:', error);
+    logger.error('Create salary structure error:', error);
     res.status(500).json({ success: false, message: 'Failed to create salary structure' });
   }
 });
@@ -105,7 +106,7 @@ router.put('/salary-structures/:id', async (req, res) => {
     res.json({ success: true, data: result.rows[0], message: 'Salary structure updated' });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'settings' });
-    console.error('Update salary structure error:', error);
+    logger.error('Update salary structure error:', error);
     res.status(500).json({ success: false, message: 'Failed to update salary structure' });
   }
 });
@@ -129,7 +130,7 @@ router.delete('/salary-structures/:id', async (req, res) => {
     res.json({ success: true, message: 'Salary structure deactivated' });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'settings' });
-    console.error('Delete salary structure error:', error);
+    logger.error('Delete salary structure error:', error);
     res.status(500).json({ success: false, message: 'Failed to delete salary structure' });
   }
 });
@@ -167,7 +168,7 @@ router.patch('/users/:id/toggle', async (req, res) => {
     });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'settings' });
-    console.error('Toggle user error:', error);
+    logger.error('Toggle user error:', error);
     res.status(500).json({ success: false, message: 'Failed to toggle user status' });
   }
 });
@@ -195,7 +196,7 @@ router.put('/users/:id', async (req, res) => {
     res.json({ success: true, data: updated.rows[0], message: 'User updated' });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'settings' });
-    console.error('Update user error:', error);
+    logger.error('Update user error:', error);
     res.status(500).json({ success: false, message: 'Failed to update user' });
   }
 });
@@ -217,7 +218,7 @@ router.post('/users/:id/reset-password', async (req, res) => {
     res.json({ success: true, message: 'Password reset successfully' });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'settings' });
-    console.error('Reset password error:', error);
+    logger.error('Reset password error:', error);
     res.status(500).json({ success: false, message: 'Failed to reset password' });
   }
 });
@@ -239,7 +240,7 @@ router.get('/system/:key', async (req, res) => {
     res.json({ success: true, data: result.rows[0].setting_value });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'settings' });
-    console.error('Fetch system setting error:', error);
+    logger.error('Fetch system setting error:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch setting' });
   }
 });
@@ -264,7 +265,7 @@ router.put('/system/:key', async (req, res) => {
     res.json({ success: true, data: result.rows[0].setting_value, message: 'Setting updated successfully' });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'settings' });
-    console.error('Update system setting error:', error);
+    logger.error('Update system setting error:', error);
     res.status(500).json({ success: false, message: 'Failed to update setting' });
   }
 });
@@ -289,7 +290,7 @@ router.post('/system/agency_logo', upload.single('logo'), async (req, res) => {
     res.json({ success: true, data: { logo_url: logoUrl }, message: 'Logo updated successfully' });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'settings' });
-    console.error('Update logo error:', error);
+    logger.error('Update logo error:', error);
     res.status(500).json({ success: false, message: 'Failed to update logo' });
   }
 });
@@ -316,7 +317,7 @@ router.get('/expense-categories', async (req, res) => {
     res.json({ success: true, data: result.rows });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'settings' });
-    console.error('Fetch expense categories error:', error);
+    logger.error('Fetch expense categories error:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch expense categories' });
   }
 });
@@ -337,7 +338,7 @@ router.post('/expense-categories', async (req, res) => {
     if (error.message.includes('UNIQUE constraint failed')) {
       return res.status(409).json({ success: false, message: 'Category already exists' });
     }
-    console.error('Create expense category error:', error);
+    logger.error('Create expense category error:', error);
     res.status(500).json({ success: false, message: 'Failed to create expense category' });
   }
 });
@@ -357,7 +358,7 @@ router.put('/expense-categories/:id', async (req, res) => {
     if (error.message.includes('UNIQUE constraint failed')) {
       return res.status(409).json({ success: false, message: 'Category already exists' });
     }
-    console.error('Update expense category error:', error);
+    logger.error('Update expense category error:', error);
     res.status(500).json({ success: false, message: 'Failed to update category' });
   }
 });
@@ -391,7 +392,7 @@ router.post('/system/agency_logo', upload.single('logo'), async (req, res) => {
     res.json({ success: true, message: 'Logo uploaded successfully', logo_url: logoUrl });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'settings' });
-    console.error('Logo upload error:', error);
+    logger.error('Logo upload error:', error);
     res.status(500).json({ success: false, message: 'Failed to upload logo' });
   }
 });
@@ -413,7 +414,7 @@ router.delete('/system/agency_logo', async (req, res) => {
     res.json({ success: true, message: 'Logo removed successfully' });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'settings' });
-    console.error('Logo remove error:', error);
+    logger.error('Logo remove error:', error);
     res.status(500).json({ success: false, message: 'Failed to remove logo' });
   }
 });

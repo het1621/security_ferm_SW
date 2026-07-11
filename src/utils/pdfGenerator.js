@@ -1,3 +1,4 @@
+const logger = require('./logger.js');
 const PDFDocument = require('pdfkit');
 const path = require('path');
 const converter = require('number-to-words');
@@ -32,7 +33,7 @@ function generateInvoicePDF(invoice, client, agencySettings, dataCallback, endCa
       try {
         doc.image(logoPath, startX, 35, { fit: [80, 50], align: 'left', valign: 'top' });
       } catch(e) {
-        console.error('Failed to embed logo in invoice PDF:', e);
+        logger.error('Failed to embed logo in invoice PDF:', e);
       }
     }
   }

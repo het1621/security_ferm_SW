@@ -1,3 +1,4 @@
+const logger = require('../utils/logger.js');
 const express = require('express');
 const router = express.Router();
 const { query } = require('../database/connection');
@@ -40,7 +41,7 @@ router.get('/client-revenue', async (req, res) => {
     res.json({ success: true, data: result.rows });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'reports' });
-    console.error('Client revenue report error:', error);
+    logger.error('Client revenue report error:', error);
     res.status(500).json({ success: false, message: 'Failed to generate client revenue report' });
   }
 });
@@ -267,7 +268,7 @@ router.get('/profit-loss', async (req, res) => {
     });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'reports' });
-    console.error('Profit-loss error:', error);
+    logger.error('Profit-loss error:', error);
     res.status(500).json({ success: false, message: 'Failed to generate P&L report' });
   }
 });
@@ -367,7 +368,7 @@ router.get('/advanced-metrics', async (req, res) => {
     });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'reports' });
-    console.error('Advanced metrics error:', error);
+    logger.error('Advanced metrics error:', error);
     res.status(500).json({ success: false, message: 'Failed to compute advanced metrics' });
   }
 });
@@ -517,7 +518,7 @@ router.get('/alerts', async (req, res) => {
     res.json({ success: true, alerts, count: alerts.length });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'reports' });
-    console.error('Alerts error:', error);
+    logger.error('Alerts error:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch alerts' });
   }
 });
@@ -617,7 +618,7 @@ router.get('/monthly-trend', async (req, res) => {
     });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'reports' });
-    console.error('Monthly trend error:', error);
+    logger.error('Monthly trend error:', error);
     res.status(500).json({ success: false, message: 'Failed to generate monthly trend' });
   }
 });
@@ -677,7 +678,7 @@ router.get('/receivables-aging', async (req, res) => {
     res.json({ success: true, buckets, total_outstanding: totalOutstanding });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'reports' });
-    console.error('Receivables aging error:', error);
+    logger.error('Receivables aging error:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch receivables aging' });
   }
 });
@@ -920,7 +921,7 @@ router.get('/business-analytics', async (req, res) => {
     });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'reports' });
-    console.error('Business analytics error:', error);
+    logger.error('Business analytics error:', error);
     res.status(500).json({ success: false, message: 'Failed to compute business analytics' });
   }
 });
@@ -987,7 +988,7 @@ router.get('/cost-per-guard', async (req, res) => {
     res.json({ success: true, data });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'reports' });
-    console.error('Cost per guard error:', error);
+    logger.error('Cost per guard error:', error);
     res.status(500).json({ success: false, message: 'Failed to compute cost per guard' });
   }
 });
@@ -1085,7 +1086,7 @@ router.get('/export-excel', async (req, res) => {
     res.end();
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'reports' });
-    console.error('Excel export error:', error);
+    logger.error('Excel export error:', error);
     if (!res.headersSent) {
       res.status(500).json({ success: false, message: 'Failed to export Excel file' });
     }
@@ -1122,7 +1123,7 @@ router.get('/tds', async (req, res) => {
     res.json({ success: true, data: result.rows });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'reports' });
-    console.error('TDS report error:', error);
+    logger.error('TDS report error:', error);
     res.status(500).json({ success: false, message: 'Failed to generate TDS report' });
   }
 });
@@ -1182,7 +1183,7 @@ router.get('/gst-bifurcation', async (req, res) => {
     }
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'reports' });
-    console.error('GST bifurcation report error:', error);
+    logger.error('GST bifurcation report error:', error);
     res.status(500).json({ success: false, message: 'Failed to generate GST bifurcation report' });
   }
 });

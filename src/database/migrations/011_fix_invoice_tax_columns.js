@@ -1,3 +1,4 @@
+const logger = require('../../utils/logger.js');
 /**
  * Migration 010: Fix missing GST tax columns in existing invoices table.
  * Programmatic migration that adds columns only if they do not exist.
@@ -19,7 +20,7 @@ function up(db) {
 
   for (const col of missingColumns) {
     if (!existingCols.includes(col.name)) {
-      console.log(`     -> Adding missing column "${col.name}" to invoices table...`);
+      logger.info(`     -> Adding missing column "${col.name}" to invoices table...`);
       db.exec(`ALTER TABLE invoices ADD COLUMN ${col.name} ${col.definition};`);
     }
   }
@@ -29,7 +30,7 @@ function up(db) {
   const existingUserCols = userColumns.map(c => c.name);
 
   if (!existingUserCols.includes('permissions')) {
-    console.log('     -> Adding missing column "permissions" to users table...');
+    logger.info('     -> Adding missing column "permissions" to users table...');
     db.exec('ALTER TABLE users ADD COLUMN permissions TEXT;');
   }
 }

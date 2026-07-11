@@ -1,3 +1,4 @@
+const logger = require('../utils/logger.js');
 const express = require('express');
 const router = express.Router();
 const { query } = require('../database/connection');
@@ -41,7 +42,7 @@ router.post('/', async (req, res) => {
 
     res.status(201).json({ success: true });
   } catch (err) {
-    console.error('Failed to log error to DB:', err);
+    logger.error('Failed to log error to DB:', err);
     res.status(500).json({ success: false });
   }
 });
@@ -97,7 +98,7 @@ router.get('/', masterPasscodeMiddleware, async (req, res) => {
     
     res.json({ success: true, data: result.rows });
   } catch (error) {
-    console.error('Get errors error:', error);
+    logger.error('Get errors error:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch error logs' });
   }
 });

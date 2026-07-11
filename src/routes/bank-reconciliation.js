@@ -1,3 +1,4 @@
+const logger = require('../utils/logger.js');
 const express = require('express');
 const router = express.Router();
 const { query } = require('../database/connection');
@@ -101,7 +102,7 @@ router.get('/:accountId', async (req, res) => {
     });
   } catch (error) {
     logError(error, req, { feature: 'bank-reconciliation' });
-    console.error('Bank reconciliation fetch error:', error);
+    logger.error('Bank reconciliation fetch error:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch reconciliation data' });
   }
 });
@@ -156,7 +157,7 @@ router.post('/reconcile', async (req, res) => {
     });
   } catch (error) {
     logError(error, req, { feature: 'bank-reconciliation' });
-    console.error('Reconciliation error:', error);
+    logger.error('Reconciliation error:', error);
     res.status(500).json({ success: false, message: 'Failed to reconcile entries' });
   }
 });

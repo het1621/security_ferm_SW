@@ -1,3 +1,4 @@
+const logger = require('../utils/logger.js');
 const express = require('express');
 const router = express.Router();
 const Decimal = require('decimal.js');
@@ -146,7 +147,7 @@ router.get('/', async (req, res) => {
     });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'payroll' });
-    console.error('Get payroll error:', error);
+    logger.error('Get payroll error:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch payroll' });
   }
 });
@@ -238,7 +239,7 @@ router.post('/calculate', validate(schemas.generatePayroll), async (req, res) =>
     });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'payroll' });
-    console.error('Calculate payroll error:', error);
+    logger.error('Calculate payroll error:', error);
     res.status(500).json({ success: false, message: 'Failed to calculate payroll' });
   }
 });
@@ -343,7 +344,7 @@ router.get('/:id/pdf', async (req, res) => {
     );
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'payroll' });
-    console.error('Generate payslip PDF error:', error);
+    logger.error('Generate payslip PDF error:', error);
     if (!res.headersSent) {
       res.status(500).json({ success: false, message: 'Failed to generate Payslip PDF' });
     }

@@ -1,3 +1,4 @@
+const logger = require('./logger.js');
 const { query } = require('../database/connection');
 
 /**
@@ -42,7 +43,7 @@ async function saveStatement({
     return result.rows[0]?.id || null;
   } catch (error) {
     // Log but don't throw — statement saving should never break the main transaction
-    console.error(`[StatementSaver] Failed to save ${domain} statement "${statement_number}":`, error.message);
+    logger.error(`[StatementSaver] Failed to save ${domain} statement "${statement_number}":`, error.message);
     return null;
   }
 }

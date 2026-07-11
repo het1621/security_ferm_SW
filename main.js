@@ -8,14 +8,35 @@ const crypto = require('crypto');
 const userDataPath = app.getPath('userData');
 process.env.DB_PATH = path.join(userDataPath, 'database.sqlite');
 process.env.UPLOAD_DIR = path.join(userDataPath, 'uploads');
+process.env.LOG_DIR = path.join(userDataPath, 'logs');
 process.env.NODE_ENV = 'production';
 process.env.PORT = '5000';
 
 // Generate or load a local JWT secret for the packaged app
 const secretPath = path.join(userDataPath, 'secret.key');
 if (!fs.existsSync(secretPath)) {
-  const generatedSecret = crypto.randomBytes(64).toString('hex');
-  fs.writeFileSync(secretPath, generatedSecret, 'utf8');
+  let shouldGenerate = true;
+  // If the database already exists but secret.key is missing, warn the admin
+  if (fs.existsSync(process.env.DB_PATH)) {
+    const choice = dialog.showMessageBoxSync({
+      type: 'warning',
+      buttons: ['Generate New Secret', 'Cancel and Exit'],
+      title: 'Security Key Missing',
+      message: 'The JWT secret.key file is missing, but a database exists.',
+      detail: 'Generating a new secret will immediately log out all existing users and invalidate all current sessions. Do you want to proceed?',
+      defaultId: 1,
+      cancelId: 1
+    });
+    if (choice === 1) {
+      console.error('App launch aborted to prevent JWT invalidation.');
+      app.exit(1);
+    }
+  }
+  
+  if (shouldGenerate) {
+    const generatedSecret = crypto.randomBytes(64).toString('hex');
+    fs.writeFileSync(secretPath, generatedSecret, 'utf8');
+  }
 }
 process.env.JWT_SECRET = fs.readFileSync(secretPath, 'utf8').trim();
 

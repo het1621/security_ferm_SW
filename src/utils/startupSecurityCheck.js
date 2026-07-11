@@ -1,3 +1,4 @@
+const logger = require('./logger.js');
 /**
  * src/utils/startupSecurityCheck.js
  * Phase 4.1 — Environment & Secrets Audit
@@ -65,25 +66,25 @@ function runStartupSecurityCheck() {
   const isProduction = nodeEnv === 'production';
 
   if (errors.length > 0) {
-    console.error('\n🔴 SECURITY ERRORS — Fix these before go-live:');
-    errors.forEach((e) => console.error(`   ✗ ${e}`));
+    logger.error('\n🔴 SECURITY ERRORS — Fix these before go-live:');
+    errors.forEach((e) => logger.error(`   ✗ ${e}`));
     if (isProduction) {
       // In production (Electron), log the error but do NOT kill the process.
       // Killing the process would silently close the app with no explanation to the user.
-      console.error('\n⚠ Security errors detected in production — please review configuration.\n');
+      logger.error('\n⚠ Security errors detected in production — please review configuration.\n');
     }
   }
 
   if (warnings.length > 0) {
-    console.warn('\n🟡 SECURITY WARNINGS:');
-    warnings.forEach((w) => console.warn(`   ⚠  ${w}`));
+    logger.warn('\n🟡 SECURITY WARNINGS:');
+    warnings.forEach((w) => logger.warn(`   ⚠  ${w}`));
   }
 
   if (errors.length === 0 && warnings.length === 0) {
-    console.log('✅ Security check passed — all secrets look properly configured');
+    logger.info('✅ Security check passed — all secrets look properly configured');
   }
 
-  console.log(''); // spacer
+  logger.info(''); // spacer
 }
 
 module.exports = { runStartupSecurityCheck };

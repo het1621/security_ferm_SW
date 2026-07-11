@@ -1,3 +1,4 @@
+const logger = require('./logger.js');
 const nodemailer = require('nodemailer');
 const { query } = require('../database/connection');
 
@@ -30,7 +31,7 @@ const sendEmail = async ({ to, subject, text, html, attachments }) => {
     }
 
     if (!smtpHost || !smtpUser || !smtpPass) {
-      console.warn('SMTP is not fully configured in settings. Skipping email sending.');
+      logger.warn('SMTP is not fully configured in settings. Skipping email sending.');
       throw new Error('SMTP is not fully configured in settings.');
     }
 
@@ -54,10 +55,10 @@ const sendEmail = async ({ to, subject, text, html, attachments }) => {
     };
 
     const info = await transporter.sendMail(mailOptions);
-    console.log(`Email sent: ${info.messageId}`);
+    logger.info(`Email sent: ${info.messageId}`);
     return true;
   } catch (error) {
-    console.error('Send email error:', error);
+    logger.error('Send email error:', error);
     throw error;
   }
 };

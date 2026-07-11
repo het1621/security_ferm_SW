@@ -1,3 +1,4 @@
+const logger = require('../utils/logger.js');
 const express = require('express');
 const router = express.Router();
 const Decimal = require('decimal.js');
@@ -128,7 +129,7 @@ router.get('/', async (req, res) => {
     });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'invoices' });
-    console.error('Get invoices error:', error);
+    logger.error('Get invoices error:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch invoices' });
   }
 });
@@ -248,7 +249,7 @@ router.post('/', async (req, res) => {
     res.status(201).json({ success: true, data: createdInvoice, message: 'Invoice created successfully' });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'invoices' });
-    console.error('Create invoice error:', error);
+    logger.error('Create invoice error:', error);
     res.status(500).json({ success: false, message: 'Failed to create invoice' });
   }
 });
@@ -341,7 +342,7 @@ router.post('/:id/payment', validate(schemas.recordPayment), async (req, res) =>
     res.json({ success: true, data: updatedInv, message: 'Payment recorded successfully' });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'invoices' });
-    console.error('Record payment error:', error);
+    logger.error('Record payment error:', error);
     res.status(500).json({ success: false, message: 'Failed to record payment' });
   }
 });
@@ -377,7 +378,7 @@ router.delete('/:id', async (req, res) => {
     res.json({ success: true, message: 'Invoice deleted successfully' });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'invoices' });
-    console.error('Delete invoice error:', error);
+    logger.error('Delete invoice error:', error);
     res.status(500).json({ success: false, message: 'Failed to delete invoice' });
   }
 });
@@ -421,7 +422,7 @@ router.get('/:id/pdf', async (req, res) => {
     );
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'invoices' });
-    console.error('Generate invoice PDF error:', error);
+    logger.error('Generate invoice PDF error:', error);
     if (!res.headersSent) {
       res.status(500).json({ success: false, message: 'Failed to generate PDF' });
     }
@@ -552,7 +553,7 @@ router.post('/:id/email', async (req, res) => {
     }
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'invoices' });
-    console.error('Email invoice error:', error);
+    logger.error('Email invoice error:', error);
     res.status(500).json({ success: false, message: 'Failed to send invoice email' });
   }
 });
@@ -627,7 +628,7 @@ router.post('/event', async (req, res) => {
     res.status(201).json({ success: true, message: 'Event invoice generated', data: result.rows[0] });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'invoices' });
-    console.error('Event invoice error:', error);
+    logger.error('Event invoice error:', error);
     res.status(500).json({ success: false, message: 'Failed to generate event invoice' });
   }
 });
@@ -696,7 +697,7 @@ router.put('/:id', async (req, res) => {
     res.json({ success: true, message: 'Invoice updated successfully', data: result.rows[0] });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'invoices' });
-    console.error('Update invoice error:', error);
+    logger.error('Update invoice error:', error);
     res.status(500).json({ success: false, message: 'Failed to update invoice' });
   }
 });

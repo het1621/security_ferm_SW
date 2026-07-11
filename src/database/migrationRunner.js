@@ -1,3 +1,4 @@
+const logger = require('../utils/logger.js');
 /**
  * src/database/migrationRunner.js
  * 
@@ -41,12 +42,12 @@ function runMigrations(db) {
     }
   } catch (err) {
     // Table might not have the row yet — that's fine, we start from 0
-    console.log('No schema_version found, starting from 0');
+    logger.info('No schema_version found, starting from 0');
   }
 
   // Scan migrations directory
   if (!fs.existsSync(MIGRATIONS_DIR)) {
-    console.log('No migrations directory found — skipping migrations.');
+    logger.info('No migrations directory found — skipping migrations.');
     return;
   }
 
@@ -64,14 +65,14 @@ function runMigrations(db) {
     .filter(m => m.version > currentVersion);
 
   if (migrationFiles.length === 0) {
-    console.log(`📦 Database schema is up to date (version ${currentVersion}).`);
+    logger.info(`📦 Database schema is up to date (version ${currentVersion}).`);
     return;
   }
 
-  console.log(`\n📦 Running ${migrationFiles.length} pending migration(s)...`);
+  logger.info(`\n📦 Running ${migrationFiles.length} pending migration(s)...`);
 
   for (const migration of migrationFiles) {
-    console.log(`   ⬆ Running migration ${migration.filename}...`);
+    logger.info(`   ⬆ Running migration ${migration.filename}...`);
 
     try {
       // Run the entire migration in a transaction for safety
@@ -101,12 +102,12 @@ function runMigrations(db) {
       `).run(String(migration.version), String(migration.version));
 
       db.exec('COMMIT');
-      console.log(`   ✅ Migration ${migration.filename} applied successfully.`);
+      logger.info(`   ✅ Migration ${migration.filename} applied successfully.`);
     } catch (err) {
       // Roll back on failure — the database stays at the previous version
       try { db.exec('ROLLBACK'); } catch (rbErr) { /* ignore */ }
-      console.error(`   ❌ Migration ${migration.filename} FAILED:`, err.message);
-      console.error(`   ⚠ Database remains at version ${currentVersion}. Fix the migration and restart.`);
+      logger.error(`   ❌ Migration ${migration.filename} FAILED:`, err.message);
+      logger.error(`   ⚠ Database remains at version ${currentVersion}. Fix the migration and restart.`);
       // Don't continue with subsequent migrations if one fails
       break;
     }
@@ -115,7 +116,7 @@ function runMigrations(db) {
   // Log final version
   try {
     const finalRow = db.prepare("SELECT setting_value FROM system_settings WHERE setting_key = 'schema_version'").get();
-    console.log(`📦 Database schema is now at version ${finalRow ? finalRow.setting_value : currentVersion}.\n`);
+    logger.info(`📦 Database schema is now at version ${finalRow ? finalRow.setting_value : currentVersion}.\n`);
   } catch (e) { /* ignore */ }
 }
 

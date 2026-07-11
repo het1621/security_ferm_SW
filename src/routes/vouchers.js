@@ -1,3 +1,4 @@
+const logger = require('../utils/logger.js');
 const express = require('express');
 const router = express.Router();
 const { query } = require('../database/connection');
@@ -164,7 +165,7 @@ router.get('/', async (req, res) => {
     });
   } catch (error) {
     logError(error, req, { feature: 'vouchers' });
-    console.error('Fetch vouchers error:', error);
+    logger.error('Fetch vouchers error:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch vouchers' });
   }
 });
@@ -343,7 +344,7 @@ router.post('/', async (req, res) => {
     });
   } catch (error) {
     logError(error, req, { feature: 'vouchers' });
-    console.error('Create voucher error:', error);
+    logger.error('Create voucher error:', error);
     res.status(500).json({ success: false, message: 'Failed to create voucher' });
   }
 });

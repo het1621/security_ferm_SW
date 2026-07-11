@@ -2,6 +2,7 @@ require('dotenv').config();
 const { runStartupSecurityCheck } = require('./utils/startupSecurityCheck');
 runStartupSecurityCheck();
 const express = require('express');
+const logger = require('./utils/logger');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
@@ -104,10 +105,10 @@ const { startScheduledJobs } = require('./utils/scheduledJobs');
 app.use(async (err, req, res, next) => {
   const isDev = process.env.NODE_ENV !== 'production';
   if (isDev) {
-    console.error('Unhandled Error:', err.message, err.stack);
+    logger.error('Unhandled Error:', err.message, err.stack);
   } else {
     // In production: log only the message, not the stack (which may contain data)
-    console.error(`[ERROR] ${new Date().toISOString()} | ${req.method} ${req.url} | ${err.message}`);
+    logger.error(`[ERROR] ${new Date().toISOString()} | ${req.method} ${req.url} | ${err.message}`);
   }
   
   // Try to log the error to DB
@@ -131,7 +132,7 @@ app.use(async (err, req, res, next) => {
       ]
     );
   } catch (dbErr) {
-    console.error('Failed to save error log to DB:', dbErr);
+    logger.error('Failed to save error log to DB:', dbErr);
   }
 
   const status = err.status || 500;
@@ -157,9 +158,9 @@ app.use((req, res) => {
 startScheduledJobs();
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n🚀 Security Firm API Server running on port ${PORT} (0.0.0.0)`);
-  console.log(`📊 Environment: ${process.env.NODE_ENV}`);
-  console.log(`🗄️  Database: SQLite @ ${process.env.DB_PATH || 'database.sqlite'}\n`);
+  logger.info(`\n🚀 Security Firm API Server running on port ${PORT} (0.0.0.0)`);
+  logger.info(`📊 Environment: ${process.env.NODE_ENV}`);
+  logger.info(`🗄️  Database: SQLite @ ${process.env.DB_PATH || 'database.sqlite'}\n`);
 });
 
 module.exports = app;
