@@ -90,6 +90,10 @@ async function calculatePayroll(employee_id, payroll_month, manual_days_worked) 
   const totalDeductions = pfDeduction.plus(esiDeduction).plus(taxDeduction).plus(customDeductions).toDecimalPlaces(2);
   const netSalary = grossSalary.minus(totalDeductions).toDecimalPlaces(2);
 
+  if (netSalary.lessThan(0)) {
+    throw new Error(`Deductions (₹${totalDeductions.toString()}) exceed Gross Salary (₹${grossSalary.toString()}). Cannot process a negative net pay.`);
+  }
+
   return {
     employee_id,
     payroll_month: `${monthStart}`,
@@ -140,9 +144,23 @@ router.get('/', async (req, res) => {
 
     const countResult = await query(`SELECT COUNT(*) AS count FROM payroll p ${where}`, params);
 
+    const canReveal = req.query.reveal === 'true' && (req.user.role === 'admin' || req.user.role === 'accountant');
+    if (canReveal && result.rows.length > 0) {
+      logger.warn(`AUDIT: User ${req.user.userId} (${req.user.role}) revealed Bank PII in Payroll list.`);
+    }
+
+    const maskedRows = result.rows.map(row => {
+      if (!canReveal) {
+        if (row.bank_account_number && row.bank_account_number.length >= 4) {
+          row.bank_account_number = 'XXXXX' + row.bank_account_number.slice(-4);
+        }
+      }
+      return row;
+    });
+
     res.json({
       success: true,
-      data: result.rows,
+      data: maskedRows,
       pagination: { total: parseInt(countResult.rows[0].count), page: parseInt(page), limit: parseInt(limit) }
     });
   } catch (error) {

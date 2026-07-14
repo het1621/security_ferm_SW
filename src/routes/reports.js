@@ -1007,6 +1007,20 @@ router.get('/export-excel', async (req, res) => {
     const toDate = to_date || new Date().toISOString().split('T')[0];
 
     const workbook = new ExcelJS.Workbook();
+    
+    // Sanitize values to prevent CSV/Excel formula injection (Issue #18)
+    const sanitizeRow = (row) => {
+      const sanitized = {};
+      for (const [key, value] of Object.entries(row)) {
+        if (typeof value === 'string' && /^[=+\-@\t\r]/.test(value)) {
+          sanitized[key] = "'" + value;
+        } else {
+          sanitized[key] = value;
+        }
+      }
+      return sanitized;
+    };
+
     workbook.creator = 'Security Firm Software';
     workbook.created = new Date();
     
@@ -1033,7 +1047,7 @@ router.get('/export-excel', async (req, res) => {
         { header: 'Paid', key: 'payment_received', width: 15 },
         { header: 'Status', key: 'status', width: 15 }
       ];
-      data.rows.forEach(r => worksheet.addRow(r));
+      data.rows.forEach(r => worksheet.addRow(sanitizeRow(r)));
     } else if (type === 'payroll') {
       const data = await query(
         `SELECT e.employee_id, e.full_name, e.designation, p.payroll_month, 
@@ -1055,7 +1069,7 @@ router.get('/export-excel', async (req, res) => {
         { header: 'Net Salary', key: 'net_salary', width: 15 },
         { header: 'Status', key: 'payment_status', width: 15 }
       ];
-      data.rows.forEach(r => worksheet.addRow(r));
+      data.rows.forEach(r => worksheet.addRow(sanitizeRow(r)));
     } else if (type === 'expenses') {
       const data = await query(
         `SELECT expense_date, category, description, amount, payment_method, status
@@ -1072,7 +1086,7 @@ router.get('/export-excel', async (req, res) => {
         { header: 'Method', key: 'payment_method', width: 15 },
         { header: 'Status', key: 'status', width: 15 }
       ];
-      data.rows.forEach(r => worksheet.addRow(r));
+      data.rows.forEach(r => worksheet.addRow(sanitizeRow(r)));
     }
 
     // Styling

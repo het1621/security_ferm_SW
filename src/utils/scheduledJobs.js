@@ -1,6 +1,7 @@
 const logger = require('./logger.js');
 const cron = require('node-cron');
 const { query } = require('../database/connection');
+const { sendEmail } = require('./email');
 
 // Auto-generate invoices on the 1st of every month at 00:01 AM
 const startScheduledJobs = () => {
@@ -75,6 +76,19 @@ const startScheduledJobs = () => {
       logger.info(`✅ [CRON] Invoice generation completed: ${createdCount} created, ${skippedCount} skipped (already exist), ${errorCount} errors.`);
     } catch (error) {
       logger.error('⏳ [CRON] Failed to run monthly invoice generation:', error);
+      try {
+        const adminResult = await query("SELECT email FROM users WHERE role = 'admin' LIMIT 1");
+        if (adminResult.rows.length > 0 && adminResult.rows[0].email) {
+          await sendEmail({
+            to: adminResult.rows[0].email,
+            subject: '🚨 URGENT: Monthly Auto-Invoice CRON Failed',
+            text: `The automated monthly invoice generation job failed entirely.\n\nError details:\n${error.message}\n\nPlease check the server logs immediately.`
+          });
+          logger.info('🚨 Admin alerted via email regarding invoice CRON failure.');
+        }
+      } catch (mailErr) {
+        logger.error('Failed to send CRON failure alert:', mailErr);
+      }
     }
   });
 
@@ -92,6 +106,16 @@ const startScheduledJobs = () => {
       }
     } catch (error) {
       logger.error('⏰ [CRON] Failed to update overdue invoices:', error);
+      try {
+        const adminResult = await query("SELECT email FROM users WHERE role = 'admin' LIMIT 1");
+        if (adminResult.rows.length > 0 && adminResult.rows[0].email) {
+          await sendEmail({
+            to: adminResult.rows[0].email,
+            subject: '🚨 CRON Warning: Overdue Invoices Failed',
+            text: `The daily overdue invoices cron job failed.\n\nError details:\n${error.message}`
+          });
+        }
+      } catch (e) {}
     }
   });
   
@@ -107,34 +131,52 @@ const startScheduledJobs = () => {
       
       let processed = 0;
       for (const reqExp of result.rows) {
-        // Insert expense
-        await query(
-          `INSERT INTO expenses (expense_date, category, description, amount, payment_method, vendor_id, status, created_by)
-           VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7)`,
-          [today, reqExp.category, reqExp.title, reqExp.amount, reqExp.payment_method, reqExp.vendor_id, reqExp.created_by]
-        );
-        
-        // Calculate next run date
-        let nextDate = new Date(reqExp.next_run_date);
-        if (reqExp.frequency === 'weekly') {
-          nextDate.setDate(nextDate.getDate() + 7);
-        } else if (reqExp.frequency === 'monthly') {
-          nextDate.setMonth(nextDate.getMonth() + 1);
-        } else if (reqExp.frequency === 'yearly') {
-          nextDate.setFullYear(nextDate.getFullYear() + 1);
+        try {
+          await query('BEGIN TRANSACTION');
+          // Insert expense
+          await query(
+            `INSERT INTO expenses (expense_date, category, description, amount, payment_method, vendor_id, status, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7)`,
+            [today, reqExp.category, reqExp.title, reqExp.amount, reqExp.payment_method, reqExp.vendor_id, reqExp.created_by]
+          );
+          
+          // Calculate next run date
+          let nextDate = new Date(reqExp.next_run_date);
+          if (reqExp.frequency === 'weekly') {
+            nextDate.setDate(nextDate.getDate() + 7);
+          } else if (reqExp.frequency === 'monthly') {
+            nextDate.setMonth(nextDate.getMonth() + 1);
+          } else if (reqExp.frequency === 'yearly') {
+            nextDate.setFullYear(nextDate.getFullYear() + 1);
+          }
+          
+          await query(
+            'UPDATE recurring_expenses SET next_run_date = $1 WHERE id = $2',
+            [nextDate.toISOString().split('T')[0], reqExp.id]
+          );
+          await query('COMMIT');
+          processed++;
+        } catch (txnErr) {
+          await query('ROLLBACK');
+          logger.error(`Failed to process recurring expense ID ${reqExp.id}:`, txnErr);
+          throw txnErr; // Rethrow to trigger outer catch for email alert
         }
-        
-        await query(
-          'UPDATE recurring_expenses SET next_run_date = $1 WHERE id = $2',
-          [nextDate.toISOString().split('T')[0], reqExp.id]
-        );
-        processed++;
       }
       if (processed > 0) {
         logger.info(`⏰ [CRON] Processed ${processed} recurring expenses.`);
       }
     } catch (error) {
       logger.error('⏰ [CRON] Failed to process recurring expenses:', error);
+      try {
+        const adminResult = await query("SELECT email FROM users WHERE role = 'admin' LIMIT 1");
+        if (adminResult.rows.length > 0 && adminResult.rows[0].email) {
+          await sendEmail({
+            to: adminResult.rows[0].email,
+            subject: '🚨 CRON Warning: Recurring Expenses Failed',
+            text: `The daily recurring expenses cron job failed.\n\nError details:\n${error.message}`
+          });
+        }
+      } catch (e) {}
     }
   });
 

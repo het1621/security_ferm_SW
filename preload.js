@@ -1,26 +1,87 @@
 const { contextBridge, ipcRenderer } = require('electron');
+const Joi = require('joi');
 
+// === IPC MESSAGE VALIDATION SCHEMAS ===
+const ipcSchemas = {
+  'print-to-pdf': Joi.object({
+    landscape: Joi.boolean().optional(),
+    printBackground: Joi.boolean().optional(),
+    pageSize: Joi.string().valid('A4', 'Letter', 'A3', 'A5').optional(),
+    margins: Joi.object({
+      top: Joi.number().min(0).max(5).optional(),
+      bottom: Joi.number().min(0).max(5).optional(),
+      left: Joi.number().min(0).max(5).optional(),
+      right: Joi.number().min(0).max(5).optional(),
+    }).optional(),
+  }).unknown(false).max(5),
+
+  'save-file': Joi.object({
+    buffer: Joi.string().base64().required(),
+    defaultName: Joi.string()
+      .pattern(/^[a-zA-Z0-9\-_.\s]{1,255}$/)  // Safe filename chars only
+      .required(),
+    filters: Joi.array().max(10).optional(),
+  }).unknown(false).max(3),
+
+  'update-status': Joi.object({
+    status: Joi.string().max(50).optional(),
+    message: Joi.string().max(500).optional(),
+    percent: Joi.number().optional(),
+    transferred: Joi.number().optional(),
+    total: Joi.number().optional(),
+    version: Joi.string().optional()
+  }).unknown(false),
+};
+
+function validateIPC(schema, data) {
+  const { error, value } = schema.validate(data || {});
+  if (error) {
+    console.error(`[IPC Validation] ${error.message}`);
+    throw new Error(`Invalid IPC data: ${error.message}`);
+  }
+  return value;
+}
+
+// === EXPOSED IPC API ===
 contextBridge.exposeInMainWorld('electronAPI', {
-  // Generate a PDF of the current page using Electron's native Chromium renderer
-  printToPDF: (options) => ipcRenderer.invoke('print-to-pdf', options),
-  // Save a buffer to disk with a Save As dialog
-  saveFile: (options) => ipcRenderer.invoke('save-file', options),
+  // Print to PDF with validation
+  printToPDF: (options) => {
+    const validated = validateIPC(ipcSchemas['print-to-pdf'], options);
+    return ipcRenderer.invoke('print-to-pdf', validated);
+  },
+
+  // Save file with validation
+  saveFile: (options) => {
+    const validated = validateIPC(ipcSchemas['save-file'], options);
+    return ipcRenderer.invoke('save-file', validated);
+  },
+
   // Check if running in Electron
   isElectron: true,
 
-  // ── Auto-Update APIs ──────────────────────────────────────────────
-  // Listen for update status changes from main process
+  // Update status listener
   onUpdateStatus: (callback) => {
-    ipcRenderer.on('update-status', (event, data) => callback(data));
+    ipcRenderer.on('update-status', (event, data) => {
+      try {
+        const validated = validateIPC(ipcSchemas['update-status'], data);
+        callback(validated);
+      } catch (err) {
+        console.error('[Update Status Validation]', err.message);
+      }
+    });
   },
-  // Remove update status listener
+
+  // Remove update listener
   removeUpdateListener: () => {
     ipcRenderer.removeAllListeners('update-status');
   },
-  // Tell Electron to quit and install the downloaded update
+
+  // Install update
   installUpdate: () => ipcRenderer.invoke('install-update'),
-  // Manually trigger an update check
+
+  // Check for updates
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
-  // Get the current app version
+
+  // Get app version
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
 });

@@ -61,17 +61,32 @@ function runMigrations(db) {
         version: match ? parseInt(match[1]) : 0,
         path: path.join(MIGRATIONS_DIR, f)
       };
-    })
-    .filter(m => m.version > currentVersion);
+    });
 
-  if (migrationFiles.length === 0) {
-    logger.info(`📦 Database schema is up to date (version ${currentVersion}).`);
+  const pendingMigrations = migrationFiles.filter(m => m.version > currentVersion);
+
+  if (pendingMigrations.length === 0) {
+    logger.info('Database schema is up to date.');
     return;
   }
 
-  logger.info(`\n📦 Running ${migrationFiles.length} pending migration(s)...`);
+  // Take a pre-migration backup for safe rollback
+  try {
+    const dbPath = process.env.DB_PATH || path.join(process.cwd(), 'database.sqlite');
+    if (fs.existsSync(dbPath)) {
+      const backupDir = process.env.BACKUP_DIR || path.join(path.dirname(dbPath), 'auto-backups');
+      if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+      const preMigratePath = path.join(backupDir, `database-pre-migration-v${currentVersion}-${Date.now()}.sqlite.backup`);
+      fs.copyFileSync(dbPath, preMigratePath);
+      logger.info(`📦 Pre-migration backup saved to ${preMigratePath} for safe rollback.`);
+    }
+  } catch (backupErr) {
+    logger.warn('Could not create pre-migration backup. Proceeding with caution.', backupErr);
+  }
 
-  for (const migration of migrationFiles) {
+  logger.info(`\n📦 Running ${pendingMigrations.length} pending migration(s)...`);
+
+  for (const migration of pendingMigrations) {
     logger.info(`   ⬆ Running migration ${migration.filename}...`);
 
     try {
@@ -105,11 +120,24 @@ function runMigrations(db) {
       logger.info(`   ✅ Migration ${migration.filename} applied successfully.`);
     } catch (err) {
       // Roll back on failure — the database stays at the previous version
-      try { db.exec('ROLLBACK'); } catch (rbErr) { /* ignore */ }
-      logger.error(`   ❌ Migration ${migration.filename} FAILED:`, err.message);
-      logger.error(`   ⚠ Database remains at version ${currentVersion}. Fix the migration and restart.`);
+      try { 
+        db.exec('ROLLBACK'); 
+        logger.warn(`⚠️  Rolled back: ${migration.filename}`);
+      } catch (rbErr) { 
+        logger.error(`Failed to rollback: ${rbErr.message}`);
+      }
+      
+      logger.error(`❌ Migration failed: ${migration.filename}`, {
+        error: err.message,
+        file: migration.path,
+        stack: err.stack
+      });
+      
       // Don't continue with subsequent migrations if one fails
-      break;
+      // Throw an error so the application stops and the developer/admin is warned immediately
+      throw new Error(
+        `Migration '${migration.filename}' failed and was rolled back. Details: ${err.message}`
+      );
     }
   }
 

@@ -81,8 +81,14 @@ router.get('/', async (req, res) => {
 
     const countResult = await query(`SELECT COUNT(*) AS count FROM employees e ${where}`, params);
 
+    const canReveal = req.query.reveal === 'true' && (req.user.role === 'admin' || req.user.role === 'accountant');
+    
+    if (canReveal && result.rows.length > 0) {
+      logger.warn(`AUDIT: User ${req.user.userId} (${req.user.role}) revealed PII for employee list.`);
+    }
+
     const maskedRows = result.rows.map(emp => {
-      if (req.query.reveal !== 'true') {
+      if (!canReveal) {
         if (emp.aadhar_number && emp.aadhar_number.length >= 4) {
           emp.aadhar_number = 'XXXX-XXXX-' + emp.aadhar_number.slice(-4);
         }
@@ -123,7 +129,19 @@ router.get('/:id', async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Employee not found' });
     }
-    res.json({ success: true, data: result.rows[0] });
+
+    let emp = result.rows[0];
+    const canReveal = req.query.reveal === 'true' && (req.user.role === 'admin' || req.user.role === 'accountant');
+    
+    if (canReveal) {
+      logger.warn(`AUDIT: User ${req.user.userId} (${req.user.role}) revealed PII for employee ID ${emp.id}.`);
+    } else {
+      if (emp.aadhar_number && emp.aadhar_number.length >= 4) emp.aadhar_number = 'XXXX-XXXX-' + emp.aadhar_number.slice(-4);
+      if (emp.pan_number && emp.pan_number.length >= 4) emp.pan_number = 'XXXXX' + emp.pan_number.slice(-4);
+      if (emp.bank_account_number && emp.bank_account_number.length >= 4) emp.bank_account_number = 'XXXXX' + emp.bank_account_number.slice(-4);
+    }
+
+    res.json({ success: true, data: emp });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'employees' });
     res.status(500).json({ success: false, message: 'Failed to fetch employee' });

@@ -18,16 +18,34 @@ const bcrypt = require('bcryptjs');
 const path = require('path');
 const fs = require('fs');
 
+if (process.env.NODE_ENV === 'production') {
+  console.error("❌ FATAL: Cannot run seed script in production! It will wipe all client data.");
+  process.exit(1);
+}
+
 const dbPath = process.env.DB_PATH || path.join(process.cwd(), 'database.sqlite');
 const db = new Database(dbPath);
 db.pragma('foreign_keys = ON');
+db.pragma('journal_mode = WAL');
 
 console.log('🌱 Starting comprehensive database seeding...\n');
 
 // ─── Helpers ──────────────────────────────────────────────────────────
-function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
-function randomFloat(min, max, decimals = 2) { return parseFloat((Math.random() * (max - min) + min).toFixed(decimals)); }
-function randomPick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+const crypto = require('crypto');
+
+function secureRandomFloat() {
+  return crypto.randomBytes(4).readUInt32LE(0) / 0x100000000;
+}
+
+function randomInt(min, max) { 
+  return Math.floor(secureRandomFloat() * (max - min + 1)) + min; 
+}
+function randomFloat(min, max, decimals = 2) { 
+  return parseFloat((secureRandomFloat() * (max - min) + min).toFixed(decimals)); 
+}
+function randomPick(arr) { 
+  return arr[Math.floor(secureRandomFloat() * arr.length)]; 
+}
 function randomDate(start, end) {
   const d = new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
   return d.toISOString().split('T')[0];

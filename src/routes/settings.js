@@ -159,6 +159,10 @@ router.patch('/users/:id/toggle', async (req, res) => {
       [newActive, req.params.id]
     );
 
+    if (!newActive) {
+      await query('DELETE FROM refresh_tokens WHERE user_id = $1', [req.params.id]);
+    }
+
     const updated = await query('SELECT id, email, full_name, role, is_active FROM users WHERE id = $1', [req.params.id]);
     const user = updated.rows[0];
     res.json({
@@ -192,6 +196,9 @@ router.put('/users/:id', async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
+    // Invalidate existing sessions so the user gets the new permissions/role immediately
+    await query('DELETE FROM refresh_tokens WHERE user_id = $1', [req.params.id]);
+
     const updated = await query('SELECT id, email, full_name, role, phone, is_active, permissions FROM users WHERE id = $1', [req.params.id]);
     res.json({ success: true, data: updated.rows[0], message: 'User updated' });
   } catch (error) {
@@ -214,6 +221,9 @@ router.post('/users/:id/reset-password', async (req, res) => {
       'UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
       [hash, req.params.id]
     );
+
+    // Invalidate existing sessions after password reset
+    await query('DELETE FROM refresh_tokens WHERE user_id = $1', [req.params.id]);
 
     res.json({ success: true, message: 'Password reset successfully' });
   } catch (error) {

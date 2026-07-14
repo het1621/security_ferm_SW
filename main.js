@@ -6,39 +6,88 @@ const crypto = require('crypto');
 
 // Ensure userData directory exists for the database and uploads
 const userDataPath = app.getPath('userData');
-process.env.DB_PATH = path.join(userDataPath, 'database.sqlite');
-process.env.UPLOAD_DIR = path.join(userDataPath, 'uploads');
-process.env.LOG_DIR = path.join(userDataPath, 'logs');
+
+// Validate and normalize paths to prevent path traversal
+function validateAndSafePath(envKey, defaultPath) {
+  let userPath = process.env[envKey] || defaultPath;
+  let resolved = path.resolve(userPath);
+  
+  if (!resolved.startsWith(userDataPath)) {
+    console.error(`⚠️ Invalid path for ${envKey}. Resetting to default inside userData.`);
+    resolved = defaultPath;
+  }
+  
+  if (!fs.existsSync(resolved)) {
+    // Determine if path is a file or a folder by extension
+    const isFile = !!path.extname(resolved);
+    const dirToCreate = isFile ? path.dirname(resolved) : resolved;
+    if (!fs.existsSync(dirToCreate)) {
+      fs.mkdirSync(dirToCreate, { recursive: true, mode: 0o700 });
+    }
+  }
+  return resolved;
+}
+
+process.env.DB_PATH = validateAndSafePath('DB_PATH', path.join(userDataPath, 'database.sqlite'));
+process.env.UPLOAD_DIR = validateAndSafePath('UPLOAD_DIR', path.join(userDataPath, 'uploads'));
+process.env.LOG_DIR = validateAndSafePath('LOG_DIR', path.join(userDataPath, 'logs'));
 process.env.NODE_ENV = 'production';
 process.env.PORT = '5000';
 
-// Generate or load a local JWT secret for the packaged app
+// === JWT SECRET MANAGEMENT ===
 const secretPath = path.join(userDataPath, 'secret.key');
-if (!fs.existsSync(secretPath)) {
-  let shouldGenerate = true;
-  // If the database already exists but secret.key is missing, warn the admin
-  if (fs.existsSync(process.env.DB_PATH)) {
-    const choice = dialog.showMessageBoxSync({
-      type: 'warning',
-      buttons: ['Generate New Secret', 'Cancel and Exit'],
-      title: 'Security Key Missing',
-      message: 'The JWT secret.key file is missing, but a database exists.',
-      detail: 'Generating a new secret will immediately log out all existing users and invalidate all current sessions. Do you want to proceed?',
-      defaultId: 1,
-      cancelId: 1
-    });
-    if (choice === 1) {
-      console.error('App launch aborted to prevent JWT invalidation.');
-      app.exit(1);
+const backupSecretPath = path.join(userDataPath, 'secret.key.backup');
+
+function ensureJWTSecret() {
+  // Try to load main secret
+  if (fs.existsSync(secretPath)) {
+    const secret = fs.readFileSync(secretPath, 'utf8').trim();
+    if (secret.length > 32) {
+      return secret;  // ✅ Found valid secret
     }
   }
-  
-  if (shouldGenerate) {
-    const generatedSecret = crypto.randomBytes(64).toString('hex');
-    fs.writeFileSync(secretPath, generatedSecret, 'utf8');
+
+  // Try to recover from backup
+  if (fs.existsSync(backupSecretPath)) {
+    const backedUp = fs.readFileSync(backupSecretPath, 'utf8').trim();
+    if (backedUp.length > 32) {
+      console.warn('⚠️  Restored JWT secret from backup');
+      fs.writeFileSync(secretPath, backedUp, { mode: 0o600, encoding: 'utf8' });
+      return backedUp;  // ✅ Recovered from backup
+    }
   }
+
+  // If database exists but secret is missing/invalid, this is an error
+  if (fs.existsSync(process.env.DB_PATH)) {
+    dialog.showErrorBox(
+      '🔴 Critical: JWT Secret Missing',
+      'The JWT secret key and backup are both missing.\n\n' +
+      'This is likely due to:\n' +
+      '• Accidental file deletion\n' +
+      '• Corrupted user data directory\n\n' +
+      'To prevent all users from being logged out:\n' +
+      '1. Check if a backup file exists\n' +
+      '2. Contact support with your backup key\n' +
+      '3. Do NOT proceed without the original secret.key'
+    );
+    app.quit();
+    process.exit(1);
+  }
+
+  // Database doesn't exist → safe to generate new secret
+  console.log('🔑 Generating new JWT secret...');
+  const newSecret = crypto.randomBytes(64).toString('hex');
+
+  // Write main secret (owner read/write only)
+  fs.writeFileSync(secretPath, newSecret, { mode: 0o600, encoding: 'utf8' });
+  // Write backup (owner read/write only)
+  fs.writeFileSync(backupSecretPath, newSecret, { mode: 0o600, encoding: 'utf8' });
+
+  console.log('✅ JWT secret generated and backed up');
+  return newSecret;
 }
-process.env.JWT_SECRET = fs.readFileSync(secretPath, 'utf8').trim();
+
+process.env.JWT_SECRET = ensureJWTSecret();
 
 // Set remaining env vars that index.js / routes expect
 // These are defaults — SMTP settings are also loaded from system_settings DB table at runtime

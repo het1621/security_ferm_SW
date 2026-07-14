@@ -9,8 +9,8 @@ const Joi = require('joi');
 // ─── Reusable helpers ────────────────────────────────────────────────────────
 
 const indianPhone = Joi.string()
-  .max(20)
-  .messages({ 'string.max': 'Phone number is too long' });
+  .pattern(/^(?:\+91[\-\s]?|91[\-\s]?)?[0-9]{10}$/)
+  .messages({ 'string.pattern.base': 'Phone number must be a valid 10-digit Indian number, optionally starting with +91' });
 
 const optionalEmail = Joi.string().email({ tlds: { allow: false } }).optional().allow('', null);
 
@@ -102,20 +102,23 @@ const createEmployeeSchema = Joi.object({
   address: Joi.string().max(500).optional().allow('', null).label('Address'),
   city: Joi.string().max(100).optional().allow('', null).label('City'),
   aadhar_number: Joi.string()
-    .max(50)
+    .pattern(/^\d{12}$/)
     .optional().allow('', null)
+    .messages({ 'string.pattern.base': 'Aadhar number must be exactly 12 digits' })
     .label('Aadhar number'),
   pan_number: Joi.string()
-    .max(50)
+    .pattern(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/)
     .optional().allow('', null)
+    .messages({ 'string.pattern.base': 'PAN number must be in the format ABCDE1234F (all uppercase)' })
     .label('PAN number'),
   bank_account_number: Joi.string()
     .max(50)
     .optional().allow('', null)
     .label('Bank account number'),
   bank_ifsc_code: Joi.string()
-    .max(50)
+    .pattern(/^[A-Z]{4}0[A-Z0-9]{6}$/)
     .optional().allow('', null)
+    .messages({ 'string.pattern.base': 'Invalid IFSC code format (e.g., SBIN0001234)' })
     .label('IFSC code'),
   bank_name: Joi.string().max(200).optional().allow('', null).label('Bank name'),
   bank_account_holder_name: Joi.string().max(200).optional().allow('', null).label('Account holder name'),
@@ -197,6 +200,22 @@ const createExpenseSchema = Joi.object({
   notes: Joi.string().max(2000).optional().allow('', null).label('Notes'),
 });
 
+// POST /api/attendance
+const markAttendanceSchema = Joi.object({
+  employee_id: Joi.number().integer().positive().required().label('Employee ID'),
+  client_id: Joi.number().integer().positive().optional().allow(null, '').label('Client ID'),
+  attendance_date: Joi.date().iso().max('now').required().label('Attendance date'),
+  check_in_time: Joi.string().pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).optional().allow(null, '').label('Check-in time (HH:MM)'),
+  check_out_time: Joi.string().pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).optional().allow(null, '').label('Check-out time (HH:MM)'),
+  status: Joi.string().valid('present', 'absent', 'leave', 'holiday', 'half_day').optional().default('present').label('Status'),
+  notes: Joi.string().max(1000).optional().allow(null, '').label('Notes')
+});
+
+// POST /api/attendance/bulk
+const bulkAttendanceSchema = Joi.object({
+  records: Joi.array().items(markAttendanceSchema).min(1).required().label('Attendance records')
+});
+
 // POST /api/auth/login
 const loginSchema = Joi.object({
   email: Joi.string().email({ tlds: { allow: false } }).required().label('Email'),
@@ -216,6 +235,8 @@ module.exports = {
     generatePayroll: generatePayrollSchema,
     recordPayment: recordPaymentSchema,
     createExpense: createExpenseSchema,
+    markAttendance: markAttendanceSchema,
+    bulkAttendance: bulkAttendanceSchema,
     login: loginSchema,
   },
 };

@@ -62,25 +62,27 @@ function calculateInvoiceAmounts(monthly_rate, billing_period_start, billing_per
   const dailyRate = new Decimal(monthly_rate).dividedBy(daysInMonth);
   const amount_subtotal = dailyRate.times(daysInPeriod).toDecimalPlaces(2);
   
+  const discountDec = new Decimal(discount_amount || 0);
+  const taxable_amount = amount_subtotal.minus(discountDec);
+  const final_taxable = taxable_amount.greaterThan(0) ? taxable_amount : new Decimal(0);
+  
   let cgst_amount = new Decimal(0);
   let sgst_amount = new Decimal(0);
   let igst_amount = new Decimal(0);
 
   if (tax_type === 'cgst_sgst') {
-    cgst_amount = amount_subtotal.times(0.09).toDecimalPlaces(2);
-    sgst_amount = amount_subtotal.times(0.09).toDecimalPlaces(2);
+    cgst_amount = final_taxable.times(0.09).toDecimalPlaces(2);
+    sgst_amount = final_taxable.times(0.09).toDecimalPlaces(2);
   } else if (tax_type === 'igst') {
-    igst_amount = amount_subtotal.times(0.18).toDecimalPlaces(2);
+    igst_amount = final_taxable.times(0.18).toDecimalPlaces(2);
   }
 
-  let total_amount = amount_subtotal;
+  let total_amount = final_taxable;
   if (!is_rcm_applicable) {
     total_amount = total_amount.plus(cgst_amount).plus(sgst_amount).plus(igst_amount);
   }
-  total_amount = total_amount.toDecimalPlaces(2);
   
-  const discountDec = new Decimal(discount_amount || 0);
-  const final_amount = total_amount.minus(discountDec).toDecimalPlaces(2);
+  const final_amount = total_amount.toDecimalPlaces(2);
 
   return {
     daysInPeriod,
@@ -88,7 +90,7 @@ function calculateInvoiceAmounts(monthly_rate, billing_period_start, billing_per
     cgst_amount: parseFloat(cgst_amount.toString()),
     sgst_amount: parseFloat(sgst_amount.toString()),
     igst_amount: parseFloat(igst_amount.toString()),
-    total_amount: parseFloat(total_amount.toString()),
+    total_amount: parseFloat(amount_subtotal.plus(cgst_amount).plus(sgst_amount).plus(igst_amount).toString()),
     final_amount: parseFloat(final_amount.toString()),
   };
 }
@@ -652,21 +654,23 @@ router.put('/:id', async (req, res) => {
     const taxType = tax_type || invoice.tax_type;
     
     let cgst_amount = 0, sgst_amount = 0, igst_amount = 0;
+    const taxable_value = Math.max(0, sub - disc);
+    
     if (taxType === 'cgst_sgst') {
-      cgst_amount = parseFloat((sub * 0.09).toFixed(2));
-      sgst_amount = parseFloat((sub * 0.09).toFixed(2));
+      cgst_amount = parseFloat((taxable_value * 0.09).toFixed(2));
+      sgst_amount = parseFloat((taxable_value * 0.09).toFixed(2));
     } else if (taxType === 'igst') {
-      igst_amount = parseFloat((sub * 0.18).toFixed(2));
+      igst_amount = parseFloat((taxable_value * 0.18).toFixed(2));
     }
 
     const applyRcm = is_rcm_applicable === undefined ? invoice.is_rcm_applicable : (is_rcm_applicable ? 1 : 0);
     
-    let total_amount = sub;
+    let final_amount = taxable_value;
     if (!applyRcm) {
-      total_amount += cgst_amount + sgst_amount + igst_amount;
+      final_amount += cgst_amount + sgst_amount + igst_amount;
     }
-    total_amount = parseFloat(total_amount.toFixed(2));
-    const final_amount = parseFloat((total_amount - disc).toFixed(2));
+    final_amount = parseFloat(final_amount.toFixed(2));
+    const total_amount = parseFloat((sub + cgst_amount + sgst_amount + igst_amount).toFixed(2));
     
     // Recalculate payment due
     const payment_due = parseFloat((final_amount - invoice.payment_received).toFixed(2));

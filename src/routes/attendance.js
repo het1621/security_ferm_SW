@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const { query } = require('../database/connection');
 const { authMiddleware, requirePermission } = require('../middleware/auth');
+const { validate, schemas } = require('../middleware/validators');
 const multer = require('multer');
 const csv = require('csv-parser');
 const fs = require('fs');
@@ -62,7 +63,7 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/attendance (mark single)
-router.post('/', async (req, res) => {
+router.post('/', validate(schemas.markAttendance), async (req, res) => {
   try {
     const { employee_id, client_id, attendance_date, check_in_time, check_out_time, status = 'present', notes } = req.body;
     if (!employee_id || !attendance_date) {
@@ -100,7 +101,7 @@ router.post('/', async (req, res) => {
 });
 
 // POST /api/attendance/bulk
-router.post('/bulk', async (req, res) => {
+router.post('/bulk', validate(schemas.bulkAttendance), async (req, res) => {
   try {
     const { records } = req.body; // Array of attendance records
     if (!records || !Array.isArray(records) || records.length === 0) {

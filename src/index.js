@@ -15,19 +15,43 @@ const PORT = process.env.PORT || 5000;
 // Security middleware
 app.use(helmet());
 
-// CORS: In production (Electron), frontend + backend are same process — allow all origins.
-// In development, restrict to localhost only.
+// CORS: Restrict origins to prevent CSRF attacks
 if (process.env.NODE_ENV === 'production') {
-  app.use(cors({ origin: true, credentials: true }));
-} else {
+  // In Electron: frontend and backend are in same process
+  // Allow localhost only, reject cross-domain requests
+  const allowedOrigins = [
+    'http://localhost:5000',
+    'http://127.0.0.1:5000',
+  ];
+
   app.use(cors({
-    origin: function (origin, callback) {
-      if (!origin) return callback(null, true);
-      if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+    origin: function(origin, callback) {
+      // Allow non-browser requests (mobile apps, curl, etc.)
+      if (!origin) {
         return callback(null, true);
       }
-      const allowedOrigin = process.env.FRONTEND_URL;
-      if (allowedOrigin && origin === allowedOrigin) {
+
+      // Check if origin is in whitelist
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      // Reject disallowed origins
+      logger.warn(`⚠️  CORS blocked origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-master-passcode'],
+    maxAge: 86400  // Cache CORS policy for 24 hours
+  }));
+} else {
+  // Development: allow localhost and 127.0.0.1
+  app.use(cors({
+    origin: function(origin, callback) {
+      if (!origin) return callback(null, true);
+      if (origin.startsWith('http://localhost:') || 
+          origin.startsWith('http://127.0.0.1:')) {
         return callback(null, true);
       }
       return callback(new Error('Not allowed by CORS'));
@@ -44,12 +68,25 @@ const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 500
 });
+
+// Stricter limits for sensitive operations (Issue #13)
+const strictLimiter = rateLimit({
+  windowMs: 60 * 1000,  // 1 minute
+  max: 15               // Max 15 requests per minute
+});
+
+app.use('/api/payroll', strictLimiter);
+app.use('/api/invoices', strictLimiter);
+app.use('/api/bank-reconciliation', strictLimiter);
 app.use('/api/', limiter);
 
 // Serve static files (documents/uploads)
 const path = require('path');
-const uploadBaseDir = process.env.UPLOAD_DIR || path.join(__dirname, '..', 'uploads');
-app.use('/uploads', express.static(uploadBaseDir));
+const uploadDir = process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+app.use('/uploads', express.static(uploadDir));
 
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
@@ -71,6 +108,7 @@ const reportsRoutes = require('./routes/reports');
 const dashboardRoutes = require('./routes/dashboard');
 const ledgerRoutes = require('./routes/ledger');
 const vendorsRoutes = require('./routes/vendors');
+const { startBackupJob } = require('./utils/backupJob');
 
 // Mount Routes
 app.use('/api/auth', authRoutes);
@@ -156,6 +194,7 @@ app.use((req, res) => {
 
 // Initialize scheduled cron jobs
 startScheduledJobs();
+startBackupJob();
 
 app.listen(PORT, '0.0.0.0', () => {
   logger.info(`\n🚀 Security Firm API Server running on port ${PORT} (0.0.0.0)`);

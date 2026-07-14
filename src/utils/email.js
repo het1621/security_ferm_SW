@@ -54,9 +54,27 @@ const sendEmail = async ({ to, subject, text, html, attachments }) => {
       attachments
     };
 
-    const info = await transporter.sendMail(mailOptions);
-    logger.info(`Email sent: ${info.messageId}`);
-    return true;
+    let attempt = 0;
+    const maxAttempts = 3;
+    let lastError;
+
+    while (attempt < maxAttempts) {
+      try {
+        const info = await transporter.sendMail(mailOptions);
+        logger.info(`Email sent: ${info.messageId}`);
+        return true;
+      } catch (err) {
+        attempt++;
+        lastError = err;
+        logger.warn(`Email send attempt ${attempt}/${maxAttempts} failed: ${err.message}`);
+        if (attempt < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 2000 * attempt)); // Exponential backoff
+        }
+      }
+    }
+
+    logger.error('Send email error (all attempts failed):', lastError);
+    throw lastError;
   } catch (error) {
     logger.error('Send email error:', error);
     throw error;

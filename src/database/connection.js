@@ -19,6 +19,9 @@ function initDB() {
   
   // Enable foreign keys
   db.pragma('foreign_keys = ON');
+  
+  // Enable Write-Ahead Logging (WAL) for concurrency
+  db.pragma('journal_mode = WAL');
 
   if (!dbExists) {
     logger.info('database.sqlite not found. Initializing new database...');

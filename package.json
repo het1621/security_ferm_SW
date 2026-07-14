@@ -9,7 +9,7 @@
     "build:frontend": "cd frontend && npm run build",
     "build": "npm run build:frontend && electron-builder",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "postinstall": "npx @electron/rebuild -f -w better-sqlite3"
+    "postinstall": "npx @electron/rebuild -f -w better-sqlite3 && npm run build:frontend"
   },
   "build": {
     "appId": "com.security.agency",
@@ -52,7 +52,7 @@
   "type": "commonjs",
   "dependencies": {
     "bcryptjs": "^3.0.3",
-    "better-sqlite3": "^12.10.0",
+    "better-sqlite3": "^12.11.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "csv-parser": "^3.2.1",
@@ -71,13 +71,12 @@
     "nodemailer": "^9.0.3",
     "number-to-words": "^1.2.4",
     "pdfkit": "^0.18.0",
-    "sqlite3": "^6.0.1",
     "uuid": "^14.0.0",
     "winston": "^3.19.0"
   },
   "devDependencies": {
     "concurrently": "^10.0.3",
-    "electron": "^30.0.0",
+    "electron": "^43.1.0",
     "electron-builder": "^26.15.2",
     "wait-on": "^9.0.10"
   }
