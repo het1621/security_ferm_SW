@@ -8,7 +8,9 @@
     "start": "electron .",
     "build:frontend": "cd frontend && npm run build",
     "build": "npm run build:frontend && electron-builder",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest --forceExit --detectOpenHandles",
+    "test:coverage": "jest --coverage --forceExit --detectOpenHandles",
+    "test:watch": "jest --watch",
     "postinstall": "npx @electron/rebuild -f -w better-sqlite3 && npm run build:frontend"
   },
   "build": {
@@ -56,6 +58,7 @@
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "csv-parser": "^3.2.1",
+    "dayjs": "^1.11.21",
     "decimal.js": "^10.6.0",
     "dotenv": "^17.4.2",
     "electron-updater": "^6.3.0",
@@ -78,6 +81,8 @@
     "concurrently": "^10.0.3",
     "electron": "^43.1.0",
     "electron-builder": "^26.15.2",
+    "jest": "^30.4.2",
+    "supertest": "^7.2.2",
     "wait-on": "^9.0.10"
   }
 }

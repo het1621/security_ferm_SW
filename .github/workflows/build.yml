@@ -37,6 +37,11 @@ jobs:
         working-directory: frontend
         run: npm ci
 
+      - name: Run unit tests
+        run: npx jest --forceExit --detectOpenHandles --ci
+        env:
+          NODE_ENV: test
+
       - name: Build
         run: npm run build -- --${{ matrix.target }}
 
