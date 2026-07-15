@@ -12,6 +12,8 @@ import Employees from './pages/Employees';
 import Attendance from './pages/Attendance';
 import Invoices from './pages/Invoices';
 import Payroll from './pages/Payroll';
+import SalaryStructures from './pages/SalaryStructures';
+import SalarySlips from './pages/SalarySlips';
 import Ledger from './pages/Ledger';
 import Expenses from './pages/Expenses';
 import VendorStatements from './pages/VendorStatements';
@@ -43,6 +45,8 @@ function App() {
             <Route path="/invoices" element={<Invoices />} />
             <Route path="/recurring-invoices" element={<RecurringInvoices />} />
             <Route path="/payroll" element={<Payroll />} />
+            <Route path="/salary-structures" element={<SalaryStructures />} />
+            <Route path="/salary-slips" element={<SalarySlips />} />
             <Route path="/ledger" element={<Ledger />} />
             <Route path="/expenses" element={<Expenses />} />
             <Route path="/vendor-statements" element={<VendorStatements />} />

@@ -17,6 +17,8 @@ import {
   BarChart3,
   Landmark,
   RefreshCw,
+  Layers,
+  ClipboardCheck,
   X
 } from 'lucide-react';
 import classNames from 'classnames';
@@ -28,6 +30,8 @@ const navItems = [
   { name: 'Invoicing', path: '/invoices', icon: FileText, roles: ['admin', 'accountant'] },
   { name: 'Recurring Invoices', path: '/recurring-invoices', icon: RefreshCw, roles: ['admin', 'accountant'] },
   { name: 'Payroll', path: '/payroll', icon: Banknote, roles: ['admin', 'accountant'] },
+  { name: 'Salary Structures', path: '/salary-structures', icon: Layers, roles: ['admin', 'accountant'] },
+  { name: 'Salary Slips', path: '/salary-slips', icon: ClipboardCheck, roles: ['admin', 'accountant'] },
   { name: 'Employee Ledger', path: '/ledger', icon: Banknote, roles: ['admin', 'accountant', 'manager'] },
   { name: 'Expenses', path: '/expenses', icon: Receipt, roles: ['admin', 'accountant', 'manager'] },
   { name: 'Vendor Ledger', path: '/vendor-statements', icon: FileText, roles: ['admin', 'accountant', 'manager'] },
