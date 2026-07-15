@@ -131,6 +131,7 @@ app.use('/api/vouchers', require('./routes/vouchers'));
 app.use('/api/bank-accounts', require('./routes/bank-accounts'));
 app.use('/api/balance-sheet', require('./routes/balance-sheet'));
 app.use('/api/bank-reconciliation', require('./routes/bank-reconciliation'));
+app.use('/api/recurring-invoices', require('./routes/recurring-invoices'));
 
 // Health check
 app.get('/health', (req, res) => {

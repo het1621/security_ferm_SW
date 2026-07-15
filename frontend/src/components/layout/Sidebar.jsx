@@ -16,6 +16,7 @@ import {
   BookOpen,
   BarChart3,
   Landmark,
+  RefreshCw,
   X
 } from 'lucide-react';
 import classNames from 'classnames';
@@ -25,6 +26,7 @@ const navItems = [
   { name: 'Clients', path: '/clients', icon: Users, roles: ['admin', 'manager'] },
   { name: 'Employees', path: '/employees', icon: UserSquare2, roles: ['admin', 'manager'] },
   { name: 'Invoicing', path: '/invoices', icon: FileText, roles: ['admin', 'accountant'] },
+  { name: 'Recurring Invoices', path: '/recurring-invoices', icon: RefreshCw, roles: ['admin', 'accountant'] },
   { name: 'Payroll', path: '/payroll', icon: Banknote, roles: ['admin', 'accountant'] },
   { name: 'Employee Ledger', path: '/ledger', icon: Banknote, roles: ['admin', 'accountant', 'manager'] },
   { name: 'Expenses', path: '/expenses', icon: Receipt, roles: ['admin', 'accountant', 'manager'] },

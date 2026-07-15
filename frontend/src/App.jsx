@@ -23,6 +23,7 @@ import PLAccount from './pages/PLAccount';
 import Vouchers from './pages/Vouchers';
 import BalanceSheet from './pages/BalanceSheet';
 import BankReconciliation from './pages/BankReconciliation';
+import RecurringInvoices from './pages/RecurringInvoices';
 import DeveloperConsole from './pages/DeveloperConsole';
 
 function App() {
@@ -40,6 +41,7 @@ function App() {
             <Route path="/employees" element={<Employees />} />
             <Route path="/attendance" element={<Attendance />} />
             <Route path="/invoices" element={<Invoices />} />
+            <Route path="/recurring-invoices" element={<RecurringInvoices />} />
             <Route path="/payroll" element={<Payroll />} />
             <Route path="/ledger" element={<Ledger />} />
             <Route path="/expenses" element={<Expenses />} />

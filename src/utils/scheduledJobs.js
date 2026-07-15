@@ -180,6 +180,94 @@ const startScheduledJobs = () => {
     }
   });
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Process recurring invoices every day at 9:00 AM (Phase 1)
+  // ═══════════════════════════════════════════════════════════════════════════
+  cron.schedule('0 9 * * *', async () => {
+    logger.info('⏳ [CRON] Running recurring invoice generation...');
+    try {
+      const recurringService = require('../services/invoicing/recurringInvoices');
+      const dueInvoices = await recurringService.getDueForGeneration();
+
+      if (dueInvoices.length === 0) {
+        logger.info('⏳ [CRON] No recurring invoices due for generation.');
+        return;
+      }
+
+      let generated = 0;
+      let errors = 0;
+
+      for (const recurring of dueInvoices) {
+        try {
+          const result = await recurringService.generateInvoice(recurring.id);
+          generated++;
+          logger.info(`📄 [CRON] Generated invoice ${result.invoice_number} from recurring #${recurring.id} (${recurring.client_name})`);
+
+          // Send email notification to client
+          if (recurring.client_email) {
+            try {
+              await sendEmail({
+                to: recurring.client_email,
+                subject: `Invoice ${result.invoice_number} - ${recurring.client_name}`,
+                text: `Dear ${recurring.client_name},\n\nA new invoice (${result.invoice_number}) has been generated for ₹${result.amount}.\nBilling period: ${result.billing_period.start} to ${result.billing_period.end}.\n\nPlease process the payment at your earliest convenience.\n\nRegards,\nSecurity Firm Management`,
+              });
+            } catch (emailErr) {
+              logger.warn(`Email notification failed for recurring #${recurring.id}: ${emailErr.message}`);
+            }
+          }
+        } catch (genErr) {
+          errors++;
+          logger.error(`⏳ [CRON] Failed to generate from recurring #${recurring.id}:`, genErr);
+        }
+      }
+
+      logger.info(`✅ [CRON] Recurring invoice generation completed: ${generated} generated, ${errors} errors out of ${dueInvoices.length} due.`);
+    } catch (error) {
+      logger.error('⏳ [CRON] Failed to run recurring invoice generation:', error);
+      try {
+        const adminResult = await query("SELECT email FROM users WHERE role = 'admin' LIMIT 1");
+        if (adminResult.rows.length > 0 && adminResult.rows[0].email) {
+          await sendEmail({
+            to: adminResult.rows[0].email,
+            subject: '🚨 CRON: Recurring Invoice Generation Failed',
+            text: `The recurring invoice generation cron job failed.\n\nError: ${error.message}\n\nPlease check server logs.`
+          });
+        }
+      } catch (e) {}
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Send recurring invoice reminders every day at 8:00 AM (Phase 1)
+  // ═══════════════════════════════════════════════════════════════════════════
+  cron.schedule('0 8 * * *', async () => {
+    try {
+      const recurringService = require('../services/invoicing/recurringInvoices');
+      const dueForReminder = await recurringService.getDueForReminder();
+
+      for (const recurring of dueForReminder) {
+        if (recurring.client_email) {
+          try {
+            await sendEmail({
+              to: recurring.client_email,
+              subject: `Upcoming Invoice Reminder - ${recurring.client_name}`,
+              text: `Dear ${recurring.client_name},\n\nThis is a reminder that your next invoice will be generated on ${recurring.next_invoice_date}.\nMonthly rate: ₹${recurring.monthly_rate}\n\nRegards,\nSecurity Firm Management`,
+            });
+            logger.info(`📧 [CRON] Sent reminder to ${recurring.client_name} for invoice on ${recurring.next_invoice_date}`);
+          } catch (emailErr) {
+            logger.warn(`Reminder email failed for recurring #${recurring.id}: ${emailErr.message}`);
+          }
+        }
+      }
+
+      if (dueForReminder.length > 0) {
+        logger.info(`📧 [CRON] Sent ${dueForReminder.length} renewal reminders.`);
+      }
+    } catch (error) {
+      logger.error('⏳ [CRON] Failed to send recurring invoice reminders:', error);
+    }
+  });
+
   logger.info('⏰ Scheduled jobs initialized');
 };
 
