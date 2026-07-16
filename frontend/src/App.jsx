@@ -26,6 +26,7 @@ import Vouchers from './pages/Vouchers';
 import BalanceSheet from './pages/BalanceSheet';
 import BankReconciliation from './pages/BankReconciliation';
 import RecurringInvoices from './pages/RecurringInvoices';
+import TaxCalculator from './pages/TaxCalculator';
 import DeveloperConsole from './pages/DeveloperConsole';
 
 function App() {
@@ -52,6 +53,7 @@ function App() {
             <Route path="/vendor-statements" element={<VendorStatements />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/tax-reports" element={<TaxReports />} />
+            <Route path="/tax-calculator" element={<TaxCalculator />} />
             <Route path="/statements" element={<StatementArchive />} />
             <Route path="/pl-account" element={<PLAccount />} />
             <Route path="/vouchers" element={<Vouchers />} />

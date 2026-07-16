@@ -134,6 +134,7 @@ app.use('/api/bank-reconciliation', require('./routes/bank-reconciliation'));
 app.use('/api/recurring-invoices', require('./routes/recurring-invoices'));
 app.use('/api/salary-structures', require('./routes/salary-structures'));
 app.use('/api/salary-slips', require('./routes/salary-slips'));
+app.use('/api/tax', require('./routes/tax'));
 
 // Health check
 app.get('/health', (req, res) => {
