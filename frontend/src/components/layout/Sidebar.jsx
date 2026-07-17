@@ -41,6 +41,7 @@ const navItems = [
   { name: 'Tax Reports', path: '/tax-reports', icon: Receipt, roles: ['admin', 'manager', 'accountant'] },
   { name: 'Tax Calculator', path: '/tax-calculator', icon: Calculator, roles: ['admin', 'accountant'] },
   { name: 'PF & Gratuity', path: '/pf-gratuity', icon: Shield, roles: ['admin', 'accountant'] },
+  { name: 'GST Compliance', path: '/gst-compliance', icon: FileText, roles: ['admin', 'accountant'] },
   { name: 'Statement Archive', path: '/statements', icon: Archive, roles: ['admin', 'manager', 'accountant'] },
   { name: 'P&L Account', path: '/pl-account', icon: Wallet, roles: ['admin'] },
   { name: 'Balance Sheet', path: '/balance-sheet', icon: BarChart3, roles: ['admin', 'accountant'] },

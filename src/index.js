@@ -136,6 +136,7 @@ app.use('/api/salary-structures', require('./routes/salary-structures'));
 app.use('/api/salary-slips', require('./routes/salary-slips'));
 app.use('/api/tax', require('./routes/tax'));
 app.use('/api/pf-gratuity', require('./routes/pf-gratuity'));
+app.use('/api/gst', require('./routes/gst-compliance'));
 
 // Health check
 app.get('/health', (req, res) => {
