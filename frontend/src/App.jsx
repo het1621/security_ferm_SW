@@ -27,6 +27,7 @@ import BalanceSheet from './pages/BalanceSheet';
 import BankReconciliation from './pages/BankReconciliation';
 import RecurringInvoices from './pages/RecurringInvoices';
 import TaxCalculator from './pages/TaxCalculator';
+import PFGratuity from './pages/PFGratuity';
 import DeveloperConsole from './pages/DeveloperConsole';
 
 function App() {
@@ -54,6 +55,7 @@ function App() {
             <Route path="/reports" element={<Reports />} />
             <Route path="/tax-reports" element={<TaxReports />} />
             <Route path="/tax-calculator" element={<TaxCalculator />} />
+            <Route path="/pf-gratuity" element={<PFGratuity />} />
             <Route path="/statements" element={<StatementArchive />} />
             <Route path="/pl-account" element={<PLAccount />} />
             <Route path="/vouchers" element={<Vouchers />} />

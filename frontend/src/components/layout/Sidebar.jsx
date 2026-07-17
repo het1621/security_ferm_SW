@@ -20,6 +20,7 @@ import {
   Layers,
   ClipboardCheck,
   Calculator,
+  Shield,
   X
 } from 'lucide-react';
 import classNames from 'classnames';
@@ -39,6 +40,7 @@ const navItems = [
   { name: 'Reports', path: '/reports', icon: PieChart, roles: ['admin', 'manager', 'accountant'] },
   { name: 'Tax Reports', path: '/tax-reports', icon: Receipt, roles: ['admin', 'manager', 'accountant'] },
   { name: 'Tax Calculator', path: '/tax-calculator', icon: Calculator, roles: ['admin', 'accountant'] },
+  { name: 'PF & Gratuity', path: '/pf-gratuity', icon: Shield, roles: ['admin', 'accountant'] },
   { name: 'Statement Archive', path: '/statements', icon: Archive, roles: ['admin', 'manager', 'accountant'] },
   { name: 'P&L Account', path: '/pl-account', icon: Wallet, roles: ['admin'] },
   { name: 'Balance Sheet', path: '/balance-sheet', icon: BarChart3, roles: ['admin', 'accountant'] },
