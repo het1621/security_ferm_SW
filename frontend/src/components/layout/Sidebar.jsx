@@ -21,6 +21,7 @@ import {
   ClipboardCheck,
   Calculator,
   Shield,
+  Zap,
   X
 } from 'lucide-react';
 import classNames from 'classnames';
@@ -43,6 +44,7 @@ const navItems = [
   { name: 'PF & Gratuity', path: '/pf-gratuity', icon: Shield, roles: ['admin', 'accountant'] },
   { name: 'GST Compliance', path: '/gst-compliance', icon: FileText, roles: ['admin', 'accountant'] },
   { name: 'Financial Reports', path: '/financial-reports', icon: BarChart3, roles: ['admin', 'accountant'] },
+  { name: 'Workflows', path: '/workflows', icon: Zap, roles: ['admin'] },
   { name: 'Statement Archive', path: '/statements', icon: Archive, roles: ['admin', 'manager', 'accountant'] },
   { name: 'P&L Account', path: '/pl-account', icon: Wallet, roles: ['admin'] },
   { name: 'Balance Sheet', path: '/balance-sheet', icon: BarChart3, roles: ['admin', 'accountant'] },

@@ -30,6 +30,7 @@ import TaxCalculator from './pages/TaxCalculator';
 import PFGratuity from './pages/PFGratuity';
 import GSTCompliance from './pages/GSTCompliance';
 import FinancialReports from './pages/FinancialReports';
+import Workflows from './pages/Workflows';
 import DeveloperConsole from './pages/DeveloperConsole';
 
 function App() {
@@ -60,6 +61,7 @@ function App() {
             <Route path="/pf-gratuity" element={<PFGratuity />} />
             <Route path="/gst-compliance" element={<GSTCompliance />} />
             <Route path="/financial-reports" element={<FinancialReports />} />
+            <Route path="/workflows" element={<Workflows />} />
             <Route path="/statements" element={<StatementArchive />} />
             <Route path="/pl-account" element={<PLAccount />} />
             <Route path="/vouchers" element={<Vouchers />} />
