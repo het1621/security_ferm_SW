@@ -29,6 +29,7 @@ import RecurringInvoices from './pages/RecurringInvoices';
 import TaxCalculator from './pages/TaxCalculator';
 import PFGratuity from './pages/PFGratuity';
 import GSTCompliance from './pages/GSTCompliance';
+import FinancialReports from './pages/FinancialReports';
 import DeveloperConsole from './pages/DeveloperConsole';
 
 function App() {
@@ -58,6 +59,7 @@ function App() {
             <Route path="/tax-calculator" element={<TaxCalculator />} />
             <Route path="/pf-gratuity" element={<PFGratuity />} />
             <Route path="/gst-compliance" element={<GSTCompliance />} />
+            <Route path="/financial-reports" element={<FinancialReports />} />
             <Route path="/statements" element={<StatementArchive />} />
             <Route path="/pl-account" element={<PLAccount />} />
             <Route path="/vouchers" element={<Vouchers />} />
