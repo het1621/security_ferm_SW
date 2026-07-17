@@ -70,18 +70,20 @@ export default function BalanceSheet() {
             <input type="date" value={asOnDate} onChange={e => setAsOnDate(e.target.value)}
               style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '13px' }} />
           </div>
-          <button onClick={() => setCompare(!compare)} style={{
-            padding: '8px 14px', borderRadius: '8px', border: `1px solid ${compare ? '#6366f1' : '#e2e8f0'}`,
-            background: compare ? '#eef2ff' : '#f8fafc', color: compare ? '#6366f1' : '#64748b',
-            cursor: 'pointer', fontSize: '13px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px'
-          }}>
+          <button 
+            onClick={() => setCompare(!compare)} 
+            className={`px-3 py-2 rounded-lg border text-sm font-medium flex items-center gap-2 transition-colors ${
+              compare 
+                ? 'bg-teal-50 border-teal-200 text-teal-700' 
+                : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+            }`}
+          >
             <GitCompare size={14} /> Compare YoY
           </button>
-          <button onClick={handleGenerate} style={{
-            padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer',
-            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: '#fff', fontWeight: 600,
-            display: 'flex', alignItems: 'center', gap: '6px'
-          }}>
+          <button 
+            onClick={handleGenerate} 
+            className="px-4 py-2 rounded-lg border-none cursor-pointer bg-teal-600 hover:bg-teal-700 text-white font-semibold flex items-center gap-2 transition-colors text-sm"
+          >
             <Download size={14} /> Archive
           </button>
         </div>

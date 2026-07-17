@@ -42,7 +42,7 @@ class FinancialReportingService {
 
     const payroll = await query(
       `SELECT COALESCE(SUM(net_salary), 0) as paid
-       FROM salary_slips WHERE pay_period_start >= $1 AND pay_period_end <= $2
+       FROM salary_slips WHERE payroll_month >= strftime('%Y-%m', $1) AND payroll_month <= strftime('%Y-%m', $2)
        AND status = 'paid'`,
       [startDate, endDate]
     );
@@ -136,8 +136,8 @@ class FinancialReportingService {
     );
 
     const actualPayroll = await query(
-      `SELECT COALESCE(SUM(gross_salary), 0) as total
-       FROM salary_slips WHERE pay_period_start >= $1 AND pay_period_end <= $2
+      `SELECT COALESCE(SUM(total_earnings), 0) as total
+       FROM salary_slips WHERE payroll_month >= strftime('%Y-%m', $1) AND payroll_month <= strftime('%Y-%m', $2)
        AND status IN ('approved', 'paid')`,
       [startDate, endDate]
     );
@@ -264,8 +264,8 @@ class FinancialReportingService {
 
     // Payroll
     const payroll = await query(
-      `SELECT COALESCE(SUM(gross_salary), 0) as total FROM salary_slips
-       WHERE strftime('%Y-%m', pay_period_start) = $1
+      `SELECT COALESCE(SUM(total_earnings), 0) as total FROM salary_slips
+       WHERE payroll_month = $1
        AND status IN ('approved', 'paid')`,
       [month]
     );

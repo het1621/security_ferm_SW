@@ -5,6 +5,21 @@ const { query } = require('../database/connection');
 const { authMiddleware, requirePermission } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validators');
 const { logError } = require('../utils/errorLogger');
+const { logAudit } = require('../middleware/audit');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+const exceljs = require('exceljs');
+
+const uploadDir = path.join(process.cwd(), 'uploads', 'docs');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadDir),
+  filename: (req, file, cb) => cb(null, 'DOC-' + Date.now() + path.extname(file.originalname))
+});
+const upload = multer({ storage: storage });
 
 router.use(authMiddleware);
 router.use(requirePermission('manage_invoices'));
@@ -85,6 +100,75 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// POST /api/clients/import
+router.post('/import', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No file uploaded' });
+    }
+
+    const filePath = req.file.path;
+    const workbook = new exceljs.Workbook();
+    await workbook.xlsx.readFile(filePath);
+    
+    const worksheet = workbook.getWorksheet(1); // Get first sheet
+    if (!worksheet) {
+      fs.unlinkSync(filePath);
+      return res.status(400).json({ success: false, message: 'Invalid or empty Excel file' });
+    }
+
+    let importedCount = 0;
+    let skippedCount = 0;
+    
+    // Assume row 1 is headers. We'll read from row 2 onwards.
+    // Expected Columns: Name, Address, City, Phone, Email, Monthly Rate
+    worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+      if (rowNumber === 1) return; // Skip headers
+      
+      const name = row.getCell(1).value?.toString() || '';
+      const address = row.getCell(2).value?.toString() || '';
+      const city = row.getCell(3).value?.toString() || '';
+      const phone = row.getCell(4).value?.toString() || '';
+      const email = row.getCell(5).value?.toString() || '';
+      const monthly_rate = parseFloat(row.getCell(6).value) || 0;
+      
+      if (name && address && city && monthly_rate > 0) {
+        try {
+          const contract_start_date = new Date().toISOString().split('T')[0];
+          
+          query(
+            `INSERT INTO clients (name, address, city, phone, email, monthly_rate, contract_start_date, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+            [name, address, city, phone, email, monthly_rate, contract_start_date, req.user.userId]
+          );
+          importedCount++;
+        } catch (e) {
+          skippedCount++;
+        }
+      } else {
+        skippedCount++;
+      }
+    });
+
+    // Cleanup the uploaded file
+    fs.unlinkSync(filePath);
+    
+    await logAudit(req, 'clients', null, 'create', \`Bulk imported \${importedCount} clients\`);
+
+    res.json({
+      success: true,
+      message: \`Successfully imported \${importedCount} clients. Skipped \${skippedCount} invalid rows.\`,
+      data: { imported: importedCount, skipped: skippedCount }
+    });
+  } catch (error) {
+    logger.error('Import error:', error);
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    res.status(500).json({ success: false, message: 'Failed to process the import file' });
+  }
+});
+
 // POST /api/clients
 router.post('/', validate(schemas.createClient), async (req, res) => {
   try {
@@ -110,6 +194,8 @@ router.post('/', validate(schemas.createClient), async (req, res) => {
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
       [name, address, city, state, postal_code, email, phone, contact_person, gst_number, monthly_rate, contract_start_date, contract_end_date || null, notes, req.user.userId]
     );
+
+    await logAudit(req, 'clients', result.rows[0].id, 'create', `Created client: ${name}`);
 
     res.status(201).json({ success: true, data: result.rows[0], message: 'Client created successfully' });
   } catch (error) {
@@ -139,6 +225,9 @@ router.put('/:id', validate(schemas.updateClient), async (req, res) => {
 
     // Re-fetch the updated client (RETURNING * is stripped by the SQLite adapter)
     const updated = await query('SELECT * FROM clients WHERE id = $1', [req.params.id]);
+    
+    await logAudit(req, 'clients', req.params.id, 'update', `Updated client: ${name}`);
+    
     res.json({ success: true, data: updated.rows[0], message: 'Client updated successfully' });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'clients' });
@@ -157,6 +246,9 @@ router.delete('/:id', async (req, res) => {
     if (result.rowCount === 0) {
       return res.status(404).json({ success: false, message: 'Client not found' });
     }
+    
+    await logAudit(req, 'clients', req.params.id, 'update', 'Deactivated client');
+    
     res.json({ success: true, message: 'Client deactivated successfully' });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'clients' });
@@ -171,6 +263,9 @@ router.delete('/:id/hard', async (req, res) => {
     if (result.rowCount === 0) {
       return res.status(404).json({ success: false, message: 'Client not found' });
     }
+    
+    await logAudit(req, 'clients', req.params.id, 'delete', 'Permanently deleted client');
+    
     res.json({ success: true, message: 'Client permanently deleted' });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'clients' });

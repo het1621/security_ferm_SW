@@ -4,9 +4,13 @@ const router = express.Router();
 const { query } = require('../database/connection');
 const { authMiddleware, requirePermission } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validators');
+const { logError } = require('../utils/errorLogger');
+const { logAudit } = require('../middleware/audit');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const exceljs = require('exceljs');
+const crypto = require('crypto');
 
 // Ensure uploads directory exists
 const baseUploadPath = process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads');
@@ -148,6 +152,77 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// POST /api/employees/import
+router.post('/import', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No file uploaded' });
+    }
+
+    const filePath = req.file.path;
+    const workbook = new exceljs.Workbook();
+    await workbook.xlsx.readFile(filePath);
+    
+    const worksheet = workbook.getWorksheet(1); // Get first sheet
+    if (!worksheet) {
+      fs.unlinkSync(filePath);
+      return res.status(400).json({ success: false, message: 'Invalid or empty Excel file' });
+    }
+
+    let importedCount = 0;
+    let skippedCount = 0;
+    
+    // Assume row 1 is headers. We'll read from row 2 onwards.
+    // Expected Columns: Name, Phone, Email, Address, City
+    worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+      if (rowNumber === 1) return; // Skip headers
+      
+      const full_name = row.getCell(1).value?.toString() || '';
+      const phone = row.getCell(2).value?.toString() || '';
+      const email = row.getCell(3).value?.toString() || '';
+      const address = row.getCell(4).value?.toString() || '';
+      const city = row.getCell(5).value?.toString() || '';
+      
+      if (full_name && phone) {
+        try {
+          const randomHex = crypto.randomBytes(3).toString('hex').toUpperCase();
+          const employee_id = `EMP-${randomHex}`;
+          const date_of_joining = new Date().toISOString().split('T')[0];
+          
+          query(
+            `INSERT INTO employees (employee_id, full_name, phone, email, address, city, date_of_joining)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [employee_id, full_name, phone, email, address, city, date_of_joining]
+          );
+          importedCount++;
+        } catch (e) {
+          skippedCount++;
+        }
+      } else {
+        skippedCount++;
+      }
+    });
+
+    // Cleanup the uploaded file
+    fs.unlinkSync(filePath);
+    
+    await logAudit(req, 'employees', null, 'create', \`Bulk imported \${importedCount} employees\`);
+
+    res.json({
+      success: true,
+      message: \`Successfully imported \${importedCount} employees. Skipped \${skippedCount} invalid rows.\`,
+      data: { imported: importedCount, skipped: skippedCount }
+    });
+  } catch (error) {
+    logger.error('Import error:', error);
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    res.status(500).json({ success: false, message: 'Failed to process the import file' });
+  }
+});
+
+
 // POST /api/employees
 router.post('/', validate(schemas.createEmployee), async (req, res) => {
   try {
@@ -162,7 +237,6 @@ router.post('/', validate(schemas.createEmployee), async (req, res) => {
 
     // Generate employee ID using a collision-resistant approach
     const crypto = require('crypto');
-const { logError } = require('../utils/errorLogger');
     const randomHex = crypto.randomBytes(3).toString('hex').toUpperCase();
     const employee_id = `EMP-${randomHex}`;
 
@@ -177,6 +251,8 @@ const { logError } = require('../utils/errorLogger');
         date_of_joining, designation, salary_structure_id || null, assigned_client_id || null,
         emergency_contact_name, emergency_contact_phone, notes]
     );
+
+    await logAudit(req, 'employees', result.rows[0].id, 'create', `Created employee: ${full_name} (${employee_id})`);
 
     res.status(201).json({ success: true, data: result.rows[0], message: 'Employee created successfully' });
   } catch (error) {
@@ -215,8 +291,11 @@ router.put('/:id', validate(schemas.updateEmployee), async (req, res) => {
       return res.status(404).json({ success: false, message: 'Employee not found' });
     }
 
-    // Re-fetch the updated employee (RETURNING * is stripped by the SQLite adapter)
+    // Re-fetch to return complete updated data
     const updated = await query('SELECT * FROM employees WHERE id = $1', [req.params.id]);
+
+    await logAudit(req, 'employees', req.params.id, 'update', `Updated employee: ${full_name}`);
+
     res.json({ success: true, data: updated.rows[0], message: 'Employee updated successfully' });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'employees' });
@@ -235,6 +314,9 @@ router.delete('/:id', async (req, res) => {
     if (result.rowCount === 0) {
       return res.status(404).json({ success: false, message: 'Employee not found' });
     }
+    
+    await logAudit(req, 'employees', req.params.id, 'update', 'Deactivated employee');
+    
     res.json({ success: true, message: 'Employee deactivated successfully' });
   } catch (error) {
     logError(error, typeof req !== 'undefined' ? req : {}, { feature: 'employees' });

@@ -82,20 +82,20 @@ export default function TaxCalculatorPage() {
   const fmt = (v) => `₹${Number(v || 0).toLocaleString('en-IN')}`;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
             <Calculator className="w-6 h-6 text-orange-400" /> Tax Calculator
           </h1>
-          <p className="text-gray-400 mt-1">Indian Income Tax — FY 2025-26 (New + Old Regime)</p>
+          <p className="text-slate-500 mt-1">Indian Income Tax — FY 2025-26 (New + Old Regime)</p>
         </div>
-        <div className="flex bg-gray-800 rounded-lg p-1">
-          <button onClick={() => setMode('calculator')} className={`px-4 py-2 rounded-lg text-sm transition-colors ${mode === 'calculator' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}>
+        <div className="flex bg-white rounded-lg p-1">
+          <button onClick={() => setMode('calculator')} className={`px-4 py-2 rounded-lg text-sm transition-colors ${mode === 'calculator' ? 'bg-teal-600 text-slate-900' : 'text-slate-500 hover:text-slate-900'}`}>
             <Calculator className="w-4 h-4 inline mr-1" /> Calculator
           </button>
-          <button onClick={() => setMode('comparison')} className={`px-4 py-2 rounded-lg text-sm transition-colors ${mode === 'comparison' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}>
+          <button onClick={() => setMode('comparison')} className={`px-4 py-2 rounded-lg text-sm transition-colors ${mode === 'comparison' ? 'bg-teal-600 text-slate-900' : 'text-slate-500 hover:text-slate-900'}`}>
             <ArrowRightLeft className="w-4 h-4 inline mr-1" /> Compare Regimes
           </button>
         </div>
@@ -104,36 +104,36 @@ export default function TaxCalculatorPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* ─── Input Panel ─────────────────────────────────────────────────── */}
         <div className="space-y-4">
-          <div className="bg-gray-800/30 border border-gray-700/50 rounded-xl p-5 space-y-4">
-            <h2 className="text-sm font-bold text-gray-300 border-b border-gray-700 pb-2">Income Details</h2>
+          <div className="bg-white shadow-sm border border-slate-200 rounded-xl p-5 space-y-4">
+            <h2 className="text-sm font-bold text-slate-700 border-b border-slate-200 pb-2">Income Details</h2>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Gross Annual Income (CTC) *</label>
+              <label className="block text-xs text-slate-400 mb-1">Gross Annual Income (CTC) *</label>
               <input type="number" name="grossAnnualIncome" value={form.grossAnnualIncome} onChange={handleInput}
-                className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white" placeholder="e.g. 600000" />
+                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900" placeholder="e.g. 600000" />
             </div>
             <div className="grid grid-cols-3 gap-3">
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Basic (Annual)</label>
+                <label className="block text-xs text-slate-400 mb-1">Basic (Annual)</label>
                 <input type="number" name="basicAnnual" value={form.basicAnnual} onChange={handleInput}
-                  className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm" />
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 text-sm" />
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">HRA (Annual)</label>
+                <label className="block text-xs text-slate-400 mb-1">HRA (Annual)</label>
                 <input type="number" name="hraAnnual" value={form.hraAnnual} onChange={handleInput}
-                  className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm" />
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 text-sm" />
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">DA (Annual)</label>
+                <label className="block text-xs text-slate-400 mb-1">DA (Annual)</label>
                 <input type="number" name="daAnnual" value={form.daAnnual} onChange={handleInput}
-                  className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm" />
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 text-sm" />
               </div>
             </div>
 
             {mode === 'calculator' && (
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Tax Regime</label>
+                <label className="block text-xs text-slate-400 mb-1">Tax Regime</label>
                 <select name="regime" value={form.regime} onChange={handleInput}
-                  className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white">
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900">
                   <option value="new">New Regime (FY 2025-26)</option>
                   <option value="old">Old Regime</option>
                 </select>
@@ -143,26 +143,26 @@ export default function TaxCalculatorPage() {
 
           {/* Deductions (collapsible, shown for old regime or compare) */}
           {(form.regime === 'old' || mode === 'comparison') && (
-            <div className="bg-gray-800/30 border border-gray-700/50 rounded-xl overflow-hidden">
-              <button onClick={() => setShowDeductions(!showDeductions)} className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-700/20">
-                <span className="text-sm font-bold text-gray-300 flex items-center gap-2">
+            <div className="bg-white shadow-sm border border-slate-200 rounded-xl overflow-hidden">
+              <button onClick={() => setShowDeductions(!showDeductions)} className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-50">
+                <span className="text-sm font-bold text-slate-700 flex items-center gap-2">
                   <FileCheck className="w-4 h-4 text-green-400" /> Tax Saving Declarations (Old Regime)
                 </span>
-                {showDeductions ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                {showDeductions ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
               </button>
               {showDeductions && (
-                <div className="p-4 pt-0 space-y-4 border-t border-gray-700/50">
+                <div className="p-4 pt-0 space-y-4 border-t border-slate-200">
                   {/* HRA */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs text-gray-500 mb-1">Annual Rent Paid</label>
+                      <label className="block text-xs text-slate-400 mb-1">Annual Rent Paid</label>
                       <input type="number" name="hra_rent_paid_annual" value={form.hra_rent_paid_annual} onChange={handleInput}
-                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm" />
+                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 text-sm" />
                     </div>
                     <div>
-                      <label className="block text-xs text-gray-500 mb-1">City Type</label>
+                      <label className="block text-xs text-slate-400 mb-1">City Type</label>
                       <select name="hra_city_type" value={form.hra_city_type} onChange={handleInput}
-                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm">
+                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-900 text-sm">
                         <option value="metro">Metro (Delhi, Mumbai, etc.)</option>
                         <option value="non_metro">Non-Metro</option>
                       </select>
@@ -174,13 +174,13 @@ export default function TaxCalculatorPage() {
                     const fields = SECTION_FIELDS.filter(f => f.section === section);
                     return (
                       <div key={section}>
-                        <h4 className="text-xs text-gray-500 font-medium mb-2">Section {section}</h4>
+                        <h4 className="text-xs text-slate-400 font-medium mb-2">Section {section}</h4>
                         <div className="grid grid-cols-2 gap-2">
                           {fields.map(f => (
                             <div key={f.key}>
                               <label className="block text-[10px] text-gray-600 mb-0.5">{f.label}</label>
                               <input type="number" name={f.key} value={declarations[f.key] || ''} onChange={handleDeclInput}
-                                className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-white text-xs" />
+                                className="w-full bg-white border border-slate-200 rounded px-2 py-1.5 text-slate-900 text-xs" />
                             </div>
                           ))}
                         </div>
@@ -193,7 +193,7 @@ export default function TaxCalculatorPage() {
           )}
 
           <button onClick={mode === 'calculator' ? computeTax : compareRegimes} disabled={loading || !form.grossAnnualIncome}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 text-white py-3 rounded-xl font-medium transition-colors">
+            className="w-full bg-teal-600 hover:bg-teal-700 disabled:bg-slate-100 text-slate-900 py-3 rounded-xl font-medium transition-colors">
             {loading ? 'Computing...' : mode === 'calculator' ? '🧮 Calculate Tax' : '⚖️ Compare Both Regimes'}
           </button>
         </div>
@@ -202,8 +202,8 @@ export default function TaxCalculatorPage() {
         <div className="space-y-4">
           {/* Single Regime Result */}
           {mode === 'calculator' && result && (
-            <div className="bg-gray-800/30 border border-gray-700/50 rounded-xl p-5 space-y-4">
-              <h2 className="text-sm font-bold text-gray-300 border-b border-gray-700 pb-2">
+            <div className="bg-white shadow-sm border border-slate-200 rounded-xl p-5 space-y-4">
+              <h2 className="text-sm font-bold text-slate-700 border-b border-slate-200 pb-2">
                 Tax Computation — {result.regime === 'new' ? 'New' : 'Old'} Regime
               </h2>
 
@@ -216,7 +216,7 @@ export default function TaxCalculatorPage() {
                 {result.sec_80e_total > 0 && <Row label="Section 80E" value={`- ${fmt(result.sec_80e_total)}`} color="text-green-400" />}
                 {result.sec_80ccd_nps > 0 && <Row label="Section 80CCD NPS" value={`- ${fmt(result.sec_80ccd_nps)}`} color="text-green-400" />}
                 {result.sec_24b_home_loan > 0 && <Row label="Section 24b" value={`- ${fmt(result.sec_24b_home_loan)}`} color="text-green-400" />}
-                <div className="border-t border-gray-700 pt-2">
+                <div className="border-t border-slate-200 pt-2">
                   <Row label="Taxable Income" value={fmt(result.taxable_income)} bold />
                 </div>
                 <Row label="Tax on Income" value={fmt(result.tax_on_income)} />
@@ -230,13 +230,13 @@ export default function TaxCalculatorPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gray-900/50 border border-gray-700/50 rounded-lg p-3 text-center">
-                  <p className="text-gray-500 text-xs">Monthly TDS</p>
-                  <p className="text-lg font-bold text-white">{fmt(result.monthly_tds)}</p>
+                <div className="bg-slate-900/50 border border-slate-200 rounded-lg p-3 text-center">
+                  <p className="text-slate-400 text-xs">Monthly TDS</p>
+                  <p className="text-lg font-bold text-slate-900">{fmt(result.monthly_tds)}</p>
                 </div>
-                <div className="bg-gray-900/50 border border-gray-700/50 rounded-lg p-3 text-center">
-                  <p className="text-gray-500 text-xs">Effective Tax Rate</p>
-                  <p className="text-lg font-bold text-white">{result.effective_rate}%</p>
+                <div className="bg-slate-900/50 border border-slate-200 rounded-lg p-3 text-center">
+                  <p className="text-slate-400 text-xs">Effective Tax Rate</p>
+                  <p className="text-lg font-bold text-slate-900">{result.effective_rate}%</p>
                 </div>
               </div>
             </div>
@@ -249,11 +249,11 @@ export default function TaxCalculatorPage() {
               <div className={`rounded-xl p-4 border text-center ${
                 comparison.recommended === 'new' ? 'bg-blue-500/10 border-blue-500/30' : 'bg-purple-500/10 border-purple-500/30'
               }`}>
-                <p className="text-xs text-gray-400 mb-1">Recommended Regime</p>
-                <p className={`text-xl font-bold ${comparison.recommended === 'new' ? 'text-blue-400' : 'text-purple-400'}`}>
+                <p className="text-xs text-slate-500 mb-1">Recommended Regime</p>
+                <p className={`text-xl font-bold ${comparison.recommended === 'new' ? 'text-blue-600' : 'text-purple-400'}`}>
                   {comparison.recommended === 'new' ? '🆕 New Regime' : '📋 Old Regime'}
                 </p>
-                <p className="text-emerald-400 text-sm mt-1">
+                <p className="text-emerald-600 text-sm mt-1">
                   <TrendingDown className="w-4 h-4 inline" /> Save {fmt(comparison.annual_savings)}/year ({fmt(comparison.monthly_savings)}/month)
                 </p>
               </div>
@@ -265,24 +265,24 @@ export default function TaxCalculatorPage() {
                   const isRecommended = (key === 'new_regime' && comparison.recommended === 'new') ||
                                         (key === 'old_regime' && comparison.recommended === 'old');
                   return (
-                    <div key={key} className={`bg-gray-800/30 border rounded-xl p-4 ${
-                      isRecommended ? 'border-emerald-500/40 ring-1 ring-emerald-500/20' : 'border-gray-700/50'
+                    <div key={key} className={`bg-white shadow-sm border rounded-xl p-4 ${
+                      isRecommended ? 'border-emerald-500/40 ring-1 ring-emerald-500/20' : 'border-slate-200'
                     }`}>
-                      <h3 className="text-sm font-bold text-gray-300 mb-3 flex items-center justify-between">
+                      <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center justify-between">
                         {key === 'new_regime' ? 'New Regime' : 'Old Regime'}
-                        {isRecommended && <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded">BEST</span>}
+                        {isRecommended && <span className="text-[10px] bg-emerald-500/20 text-emerald-600 px-2 py-0.5 rounded">BEST</span>}
                       </h3>
                       <div className="space-y-2 text-xs">
-                        <div className="flex justify-between"><span className="text-gray-500">Taxable</span><span className="text-white">{fmt(r.taxable_income)}</span></div>
-                        <div className="flex justify-between"><span className="text-gray-500">Tax</span><span className="text-white">{fmt(r.tax_on_income)}</span></div>
-                        <div className="flex justify-between"><span className="text-gray-500">Cess</span><span className="text-white">{fmt(r.education_cess)}</span></div>
-                        <div className="border-t border-gray-700 pt-2 flex justify-between font-bold">
-                          <span className="text-gray-400">Annual Tax</span>
+                        <div className="flex justify-between"><span className="text-slate-400">Taxable</span><span className="text-slate-900">{fmt(r.taxable_income)}</span></div>
+                        <div className="flex justify-between"><span className="text-slate-400">Tax</span><span className="text-slate-900">{fmt(r.tax_on_income)}</span></div>
+                        <div className="flex justify-between"><span className="text-slate-400">Cess</span><span className="text-slate-900">{fmt(r.education_cess)}</span></div>
+                        <div className="border-t border-slate-200 pt-2 flex justify-between font-bold">
+                          <span className="text-slate-500">Annual Tax</span>
                           <span className="text-orange-400">{fmt(r.total_annual_tax)}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-500">Monthly TDS</span>
-                          <span className="text-white">{fmt(r.monthly_tds)}</span>
+                          <span className="text-slate-400">Monthly TDS</span>
+                          <span className="text-slate-900">{fmt(r.monthly_tds)}</span>
                         </div>
                       </div>
                     </div>
@@ -293,7 +293,7 @@ export default function TaxCalculatorPage() {
           )}
 
           {!result && !comparison && (
-            <div className="bg-gray-800/30 border border-gray-700/50 rounded-xl p-12 text-center text-gray-500">
+            <div className="bg-white shadow-sm border border-slate-200 rounded-xl p-12 text-center text-slate-400">
               <Calculator className="w-12 h-12 mx-auto mb-3 opacity-30" />
               <p>Enter your income details and click compute to see tax breakdown.</p>
             </div>
@@ -304,10 +304,10 @@ export default function TaxCalculatorPage() {
   );
 }
 
-function Row({ label, value, color = 'text-white', bold = false }) {
+function Row({ label, value, color = 'text-slate-900', bold = false }) {
   return (
     <div className={`flex justify-between ${bold ? 'font-bold' : ''}`}>
-      <span className="text-gray-400">{label}</span>
+      <span className="text-slate-500">{label}</span>
       <span className={color}>{value}</span>
     </div>
   );

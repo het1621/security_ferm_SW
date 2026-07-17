@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
 import Pagination from '../components/Pagination';
 import TableSkeleton from '../components/TableSkeleton';
+import ImportModal from '../components/shared/ImportModal';
 
 const emptyForm = {
   full_name: '', phone: '', email: '', date_of_birth: '', address: '', city: '',
@@ -30,6 +31,7 @@ export default function Employees() {
   const [clientsList, setClientsList] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   const fetchEmployees = async () => {
     try {
@@ -208,9 +210,13 @@ export default function Employees() {
           </h1>
           <p className="text-slate-500 text-sm mt-1">Manage personnel, deployments, and salary structures.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap justify-end">
+          <button onClick={() => setIsImportModalOpen(true)} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center gap-2 border border-slate-300">
+            <Upload className="w-4 h-4" />
+            Import Excel
+          </button>
           <button onClick={handleExportCSV} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center gap-2 border border-slate-300">
-            <UserSquare2 className="w-4 h-4" />
+            <Download className="w-4 h-4" />
             Export CSV
           </button>
           <button onClick={openCreateModal} className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center gap-2">
@@ -540,6 +546,16 @@ export default function Employees() {
           </div>
         </div>
       )}
+      
+      <ImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        entityName="Employees"
+        endpoint="/employees/import"
+        onImportSuccess={() => {
+          fetchEmployees();
+        }}
+      />
     </div>
   );
 }

@@ -8,6 +8,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { createLogger } = require('./utils/secureLogger');
 const cookieParser = require('cookie-parser');
+const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -139,6 +140,8 @@ app.use('/api/pf-gratuity', require('./routes/pf-gratuity'));
 app.use('/api/gst', require('./routes/gst-compliance'));
 app.use('/api/financial-reports', require('./routes/financial-reports'));
 app.use('/api/workflows', require('./routes/workflows'));
+app.use('/api/backups', require('./routes/backups'));
+app.use('/api/audit-logs', require('./routes/audit-logs'));
 
 // Health check
 app.get('/health', (req, res) => {

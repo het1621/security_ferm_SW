@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Building2, Plus, Search, MapPin, Mail, Phone, Edit2, Trash2, CheckCircle2, XCircle, X, CalendarDays, AlertCircle, FileEdit, FileText, Download } from 'lucide-react';
+import { Building2, Plus, Search, MapPin, Mail, Phone, Edit2, Trash2, CheckCircle2, XCircle, X, CalendarDays, AlertCircle, FileEdit, FileText, Download, Upload } from 'lucide-react';
 import api from '../services/api';
 import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
 import Pagination from '../components/Pagination';
 import TableSkeleton from '../components/TableSkeleton';
+import ImportModal from '../components/shared/ImportModal';
 
 const emptyForm = {
   name: '', address: '', city: '', state: 'Gujarat', postal_code: '',
@@ -31,6 +32,7 @@ export default function Clients() {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   const fetchClients = async () => {
     try {
@@ -235,12 +237,19 @@ export default function Clients() {
           </h1>
           <p className="text-slate-500 text-sm mt-1">Manage society contracts and contact details.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap justify-end">
+          <button
+            onClick={() => setIsImportModalOpen(true)}
+            className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center gap-2 border border-slate-300"
+          >
+            <Upload className="w-4 h-4" />
+            Import Excel
+          </button>
           <button
             onClick={handleExportCSV}
             className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center gap-2 border border-slate-300"
           >
-            <FileEdit className="w-4 h-4" />
+            <Download className="w-4 h-4" />
             Export CSV
           </button>
           <button
@@ -668,6 +677,16 @@ export default function Clients() {
           </div>
         </div>
       )}
+      
+      <ImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        entityName="Clients"
+        endpoint="/clients/import"
+        onImportSuccess={() => {
+          fetchClients();
+        }}
+      />
     </div>
   );
 }

@@ -357,3 +357,16 @@ VALUES (
     'invoice_email_template',
     'Dear {{client_name}},\n\nPlease find attached the invoice {{invoice_number}} for the period {{billing_period}}.\n\nTotal Amount: ₹{{total_amount}}\nDue Date: {{due_date}}\n\nThank you for your business.\n\nRegards,\nSecurity Agency'
 ) ON CONFLICT (setting_key) DO NOTHING;
+
+-- ============================================================
+-- 15. PERFORMANCE INDEXES (Phase 16)
+-- ============================================================
+CREATE INDEX IF NOT EXISTS idx_employees_client_id ON employees(assigned_client_id);
+CREATE INDEX IF NOT EXISTS idx_employees_salary_struct ON employees(salary_structure_id);
+CREATE INDEX IF NOT EXISTS idx_clients_created_by ON clients(created_by);
+CREATE INDEX IF NOT EXISTS idx_invoices_created_by ON invoices(created_by);
+CREATE INDEX IF NOT EXISTS idx_payments_created_by ON payments(created_by);
+CREATE INDEX IF NOT EXISTS idx_payroll_created_by ON payroll(created_by);
+CREATE INDEX IF NOT EXISTS idx_expenses_approver_id ON expenses(approver_id);
+CREATE INDEX IF NOT EXISTS idx_expenses_created_by ON expenses(created_by);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);

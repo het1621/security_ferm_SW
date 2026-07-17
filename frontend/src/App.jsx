@@ -12,8 +12,6 @@ import Employees from './pages/Employees';
 import Attendance from './pages/Attendance';
 import Invoices from './pages/Invoices';
 import Payroll from './pages/Payroll';
-import SalaryStructures from './pages/SalaryStructures';
-import SalarySlips from './pages/SalarySlips';
 import Ledger from './pages/Ledger';
 import Expenses from './pages/Expenses';
 import VendorStatements from './pages/VendorStatements';
@@ -25,13 +23,14 @@ import PLAccount from './pages/PLAccount';
 import Vouchers from './pages/Vouchers';
 import BalanceSheet from './pages/BalanceSheet';
 import BankReconciliation from './pages/BankReconciliation';
-import RecurringInvoices from './pages/RecurringInvoices';
 import TaxCalculator from './pages/TaxCalculator';
 import PFGratuity from './pages/PFGratuity';
 import GSTCompliance from './pages/GSTCompliance';
 import FinancialReports from './pages/FinancialReports';
 import Workflows from './pages/Workflows';
 import DeveloperConsole from './pages/DeveloperConsole';
+import AuditLogs from './pages/AuditLogs';
+import HelpDocumentation from './pages/HelpDocumentation';
 
 function App() {
   return (
@@ -48,10 +47,7 @@ function App() {
             <Route path="/employees" element={<Employees />} />
             <Route path="/attendance" element={<Attendance />} />
             <Route path="/invoices" element={<Invoices />} />
-            <Route path="/recurring-invoices" element={<RecurringInvoices />} />
             <Route path="/payroll" element={<Payroll />} />
-            <Route path="/salary-structures" element={<SalaryStructures />} />
-            <Route path="/salary-slips" element={<SalarySlips />} />
             <Route path="/ledger" element={<Ledger />} />
             <Route path="/expenses" element={<Expenses />} />
             <Route path="/vendor-statements" element={<VendorStatements />} />
@@ -68,6 +64,8 @@ function App() {
             <Route path="/balance-sheet" element={<BalanceSheet />} />
             <Route path="/bank-reconciliation" element={<BankReconciliation />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/audit-logs" element={<AuditLogs />} />
+            <Route path="/help" element={<HelpDocumentation />} />
           </Route>
         </Routes>
       </AuthProvider>

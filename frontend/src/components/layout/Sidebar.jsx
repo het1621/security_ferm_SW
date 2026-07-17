@@ -22,6 +22,8 @@ import {
   Calculator,
   Shield,
   Zap,
+  Activity,
+  HelpCircle,
   X
 } from 'lucide-react';
 import classNames from 'classnames';
@@ -31,10 +33,7 @@ const navItems = [
   { name: 'Clients', path: '/clients', icon: Users, roles: ['admin', 'manager'] },
   { name: 'Employees', path: '/employees', icon: UserSquare2, roles: ['admin', 'manager'] },
   { name: 'Invoicing', path: '/invoices', icon: FileText, roles: ['admin', 'accountant'] },
-  { name: 'Recurring Invoices', path: '/recurring-invoices', icon: RefreshCw, roles: ['admin', 'accountant'] },
   { name: 'Payroll', path: '/payroll', icon: Banknote, roles: ['admin', 'accountant'] },
-  { name: 'Salary Structures', path: '/salary-structures', icon: Layers, roles: ['admin', 'accountant'] },
-  { name: 'Salary Slips', path: '/salary-slips', icon: ClipboardCheck, roles: ['admin', 'accountant'] },
   { name: 'Employee Ledger', path: '/ledger', icon: Banknote, roles: ['admin', 'accountant', 'manager'] },
   { name: 'Expenses', path: '/expenses', icon: Receipt, roles: ['admin', 'accountant', 'manager'] },
   { name: 'Vendor Ledger', path: '/vendor-statements', icon: FileText, roles: ['admin', 'accountant', 'manager'] },
@@ -51,7 +50,9 @@ const navItems = [
   { name: 'Vouchers', path: '/vouchers', icon: BookOpen, roles: ['admin', 'accountant'] },
   { name: 'Bank Reconciliation', path: '/bank-reconciliation', icon: Landmark, roles: ['admin', 'accountant'] },
   { name: 'divider' },
+  { name: 'Audit Logs', path: '/audit-logs', icon: Activity, roles: ['admin'] },
   { name: 'Settings', path: '/settings', icon: Settings, roles: ['admin'] },
+  { name: 'Help', path: '/help', icon: HelpCircle, roles: ['admin', 'manager', 'accountant', 'employee'] },
 ];
 
 export default function Sidebar({ mobileMenuOpen, setMobileMenuOpen }) {

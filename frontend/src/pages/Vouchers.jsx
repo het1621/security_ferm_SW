@@ -289,11 +289,10 @@ export default function Vouchers() {
               <CheckCircle size={16} /> Approve All ({pendingCount})
             </button>
           )}
-          <button onClick={() => openCreateModal()} style={{
-            padding: '10px 20px', borderRadius: '8px', border: 'none', cursor: 'pointer',
-            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: '#fff', fontWeight: 600,
-            display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 8px rgba(99,102,241,0.3)'
-          }}>
+          <button 
+            onClick={() => openCreateModal()} 
+            className="px-4 py-2 rounded-lg border-none cursor-pointer bg-teal-600 hover:bg-teal-700 text-white font-semibold flex items-center gap-2 transition-colors text-sm"
+          >
             <Plus size={16} /> New Voucher
           </button>
         </div>
@@ -543,14 +542,17 @@ export default function Vouchers() {
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '10px', marginTop: '20px', justifyContent: 'flex-end' }}>
-                <button type="button" onClick={() => { setShowModal(false); resetForm(); }}
-                  style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#f8fafc', cursor: 'pointer', fontWeight: 500 }}>
+                <button 
+                  type="button" 
+                  onClick={() => { setShowModal(false); resetForm(); }}
+                  className="px-4 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-colors text-sm cursor-pointer"
+                >
                   Cancel
                 </button>
-                <button type="submit" style={{
-                  padding: '10px 24px', borderRadius: '8px', border: 'none', cursor: 'pointer',
-                  background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: '#fff', fontWeight: 600
-                }}>
+                <button 
+                  type="submit" 
+                  className="px-5 py-2 rounded-lg border-none cursor-pointer bg-teal-600 hover:bg-teal-700 text-white font-semibold transition-colors text-sm"
+                >
                   <Send size={14} style={{ verticalAlign: 'middle', marginRight: '6px' }} />
                   {editingVoucher ? 'Update' : 'Submit for Approval'}
                 </button>

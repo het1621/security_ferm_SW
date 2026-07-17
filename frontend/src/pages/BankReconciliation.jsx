@@ -172,10 +172,10 @@ export default function BankReconciliation() {
             Match book entries with bank statement
           </p>
         </div>
-        <button onClick={() => setShowAddAccount(true)} style={{
-          padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer',
-          background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: '#fff', fontWeight: 600
-        }}>
+        <button 
+          onClick={() => setShowAddAccount(true)} 
+          className="px-4 py-2 rounded-lg border-none cursor-pointer bg-teal-600 hover:bg-teal-700 text-white font-semibold flex items-center gap-2 transition-colors text-sm"
+        >
           + Add Bank Account
         </button>
       </div>
@@ -251,10 +251,10 @@ export default function BankReconciliation() {
               display: 'flex', justifyContent: 'space-between', alignItems: 'center'
             }}>
               <span style={{ fontWeight: 600, color: '#6366f1' }}>{selectedEntries.size} entries selected</span>
-              <button onClick={handleReconcile} style={{
-                padding: '8px 20px', borderRadius: '8px', border: 'none', cursor: 'pointer',
-                background: '#22c55e', color: '#fff', fontWeight: 600
-              }}>
+              <button 
+                onClick={handleReconcile} 
+                className="px-5 py-2 rounded-lg border-none cursor-pointer bg-teal-600 hover:bg-teal-700 text-white font-semibold transition-colors text-sm"
+              >
                 <CheckCircle size={14} style={{ verticalAlign: 'middle', marginRight: '6px' }} />
                 Reconcile Selected
               </button>
@@ -498,12 +498,17 @@ export default function BankReconciliation() {
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '10px', marginTop: '20px', justifyContent: 'flex-end' }}>
-                <button type="button" onClick={() => setShowAddAccount(false)}
-                  style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#f8fafc', cursor: 'pointer' }}>Cancel</button>
-                <button type="submit" style={{
-                  padding: '8px 20px', borderRadius: '8px', border: 'none', cursor: 'pointer',
-                  background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: '#fff', fontWeight: 600
-                }}>Save Account</button>
+                <button 
+                  type="button" 
+                  onClick={() => setShowAddAccount(false)}
+                  className="px-4 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-colors text-sm cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className="px-5 py-2 rounded-lg border-none cursor-pointer bg-teal-600 hover:bg-teal-700 text-white font-semibold transition-colors text-sm"
+                >Save Account</button>
               </div>
             </form>
           </div>

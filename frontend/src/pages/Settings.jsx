@@ -999,8 +999,56 @@ function AgencyProfileTab() {
         </div>
       </div>
 
-      {/* Your Account & SMTP */}
       <div className="space-y-6">
+        {/* Database Backup Section */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-emerald-600" />
+              Database Backups
+            </h3>
+          </div>
+          <p className="text-sm text-slate-600 mb-4">
+            The system automatically backs up your database locally every night at 2:00 AM. You can also manually trigger a backup or download the latest backup archive here.
+          </p>
+          <div className="flex flex-col gap-3">
+            <button 
+              onClick={async () => {
+                try {
+                  const res = await api.post('/backups/create');
+                  if (res.data.success) {
+                    alert('Backup created successfully!');
+                  }
+                } catch (err) {
+                  alert('Failed to create manual backup');
+                }
+              }}
+              className="w-full px-4 py-2.5 text-sm font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors flex items-center justify-center gap-2"
+            >
+              <RotateCcw className="w-4 h-4" /> Trigger Manual Backup
+            </button>
+            <button 
+              onClick={async () => {
+                try {
+                  const res = await api.get('/backups');
+                  if (res.data.success && res.data.data.length > 0) {
+                    const latest = res.data.data[0].filename;
+                    const token = localStorage.getItem('token');
+                    window.open(`http://localhost:5000/api/backups/download/${latest}?token=${token}`, '_blank');
+                  } else {
+                    alert('No backups available. Trigger one first.');
+                  }
+                } catch (err) {
+                  alert('Failed to fetch backup list');
+                }
+              }}
+              className="w-full px-4 py-2.5 text-sm font-medium text-white bg-slate-800 rounded-lg hover:bg-slate-900 shadow-sm transition-colors flex items-center justify-center gap-2"
+            >
+              <CheckCircle2 className="w-4 h-4" /> Download Latest Backup
+            </button>
+          </div>
+        </div>
+
         {/* Profile Card */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
           <div className="flex justify-between items-center mb-5">
