@@ -153,11 +153,11 @@ router.post('/import', upload.single('file'), async (req, res) => {
     // Cleanup the uploaded file
     fs.unlinkSync(filePath);
     
-    await logAudit(req, 'clients', null, 'create', \`Bulk imported \${importedCount} clients\`);
+    await logAudit(req, 'clients', null, 'create', `Bulk imported ${importedCount} clients`);
 
     res.json({
       success: true,
-      message: \`Successfully imported \${importedCount} clients. Skipped \${skippedCount} invalid rows.\`,
+      message: `Successfully imported ${importedCount} clients. Skipped ${skippedCount} invalid rows.`,
       data: { imported: importedCount, skipped: skippedCount }
     });
   } catch (error) {

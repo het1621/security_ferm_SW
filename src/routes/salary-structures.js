@@ -81,7 +81,14 @@ router.get('/', async (req, res) => {
     const result = await salaryStructureService.findAll(req.query);
     res.json({ success: true, ...result });
   } catch (err) {
-    logger.error('Failed to list salary structures:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.PAYROLL,
+      feature: 'salary-structures',
+      extra: { message: 'Failed to list salary structures:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -91,7 +98,14 @@ router.get('/components', async (req, res) => {
     const components = await salaryStructureService.getAllComponents();
     res.json({ success: true, data: components });
   } catch (err) {
-    logger.error('Failed to get salary components:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.PAYROLL,
+      feature: 'salary-structures',
+      extra: { message: 'Failed to get salary components:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -101,7 +115,14 @@ router.get('/templates/seed', async (req, res) => {
     const result = await salaryStructureService.seedTemplates();
     res.json({ success: true, ...result });
   } catch (err) {
-    logger.error('Failed to seed templates:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.PAYROLL,
+      feature: 'salary-structures',
+      extra: { message: 'Failed to seed templates:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -112,7 +133,14 @@ router.get('/:id', async (req, res) => {
     if (!result) return res.status(404).json({ success: false, message: 'Salary structure not found' });
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('Failed to get salary structure:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.PAYROLL,
+      feature: 'salary-structures',
+      extra: { message: 'Failed to get salary structure:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -126,7 +154,14 @@ router.post('/', async (req, res) => {
     logger.info(`✅ Salary structure created: "${result.name}" (ID: ${result.id})`);
     res.status(201).json({ success: true, data: result });
   } catch (err) {
-    logger.error('Failed to create salary structure:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.PAYROLL,
+      feature: 'salary-structures',
+      extra: { message: 'Failed to create salary structure:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -139,7 +174,14 @@ router.put('/:id', async (req, res) => {
     const result = await salaryStructureService.update(parseInt(req.params.id), value);
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('Failed to update salary structure:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.PAYROLL,
+      feature: 'salary-structures',
+      extra: { message: 'Failed to update salary structure:' }
+    });
     const status = err.message.includes('not found') ? 404 : 500;
     res.status(status).json({ success: false, message: err.message });
   }
@@ -150,7 +192,14 @@ router.delete('/:id', async (req, res) => {
     const result = await salaryStructureService.delete(parseInt(req.params.id));
     res.json({ success: true, ...result });
   } catch (err) {
-    logger.error('Failed to delete salary structure:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.PAYROLL,
+      feature: 'salary-structures',
+      extra: { message: 'Failed to delete salary structure:' }
+    });
     const status = err.message.includes('Cannot') ? 400 : 500;
     res.status(status).json({ success: false, message: err.message });
   }
@@ -161,7 +210,14 @@ router.get('/:id/employees', async (req, res) => {
     const employees = await salaryStructureService.getEmployeesByStructure(parseInt(req.params.id));
     res.json({ success: true, data: employees });
   } catch (err) {
-    logger.error('Failed to get employees by structure:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.PAYROLL,
+      feature: 'salary-structures',
+      extra: { message: 'Failed to get employees by structure:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -173,7 +229,14 @@ router.post('/:id/assign', async (req, res) => {
     const result = await salaryStructureService.assignToEmployee(parseInt(employee_id), parseInt(req.params.id));
     res.json({ success: true, ...result });
   } catch (err) {
-    logger.error('Failed to assign structure:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.PAYROLL,
+      feature: 'salary-structures',
+      extra: { message: 'Failed to assign structure:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -187,7 +250,14 @@ router.post('/:id/bulk-assign', async (req, res) => {
     const result = await salaryStructureService.bulkAssign(employee_ids, parseInt(req.params.id));
     res.json({ success: true, ...result });
   } catch (err) {
-    logger.error('Failed to bulk assign:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.PAYROLL,
+      feature: 'salary-structures',
+      extra: { message: 'Failed to bulk assign:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });

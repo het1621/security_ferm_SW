@@ -5,7 +5,7 @@ import {
   ChevronDown, AlertCircle, Send, RefreshCw
 } from 'lucide-react';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+import api from '../services/api';
 
 const VOUCHER_TYPES = [
   { key: 'cash_payment', label: 'Cash Payment', prefix: 'CP', color: '#ef4444' },
@@ -76,8 +76,7 @@ export default function Vouchers() {
   const [cancelModal, setCancelModal] = useState(null);
   const [cancelReason, setCancelReason] = useState('');
 
-  const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
-
+  
   const fetchVouchers = useCallback(async () => {
     setLoading(true);
     try {
@@ -89,8 +88,8 @@ export default function Vouchers() {
       if (searchTerm) params.append('search', searchTerm);
       params.append('limit', '200');
 
-      const res = await fetch(`${API}/vouchers?${params}`, { headers });
-      const data = await res.json();
+      const res = await api.get(`/vouchers?${params}`);
+      const data = res;
       if (data.success) setVouchers(data.data);
       else setError(data.message);
     } catch (e) {
@@ -101,8 +100,8 @@ export default function Vouchers() {
 
   const fetchBankAccounts = async () => {
     try {
-      const res = await fetch(`${API}/bank-accounts?active_only=true`, { headers });
-      const data = await res.json();
+      const res = await api.get(`/bank-accounts?active_only=true`);
+      const data = res;
       if (data.success) setBankAccounts(data.data);
     } catch (e) { /* ignore */ }
   };
@@ -110,11 +109,11 @@ export default function Vouchers() {
   const fetchPartyLists = async () => {
     try {
       const [cRes, eRes, vRes] = await Promise.all([
-        fetch(`${API}/clients`, { headers }),
-        fetch(`${API}/employees`, { headers }),
-        fetch(`${API}/vendors`, { headers })
+        api.get(`/clients`),
+        api.get(`/employees`),
+        api.get(`/vendors`)
       ]);
-      const [cData, eData, vData] = await Promise.all([cRes.json(), eRes.json(), vRes.json()]);
+      const [cData, eData, vData] = [cRes, eRes, vRes];
       if (cData.success) setClients(cData.data || []);
       if (eData.success) setEmployees(eData.data || []);
       if (vData.success) setVendors(vData.data || []);
@@ -123,16 +122,16 @@ export default function Vouchers() {
 
   const fetchSummary = async () => {
     try {
-      const res = await fetch(`${API}/vouchers/summary`, { headers });
-      const data = await res.json();
+      const res = await api.get(`/vouchers/summary`);
+      const data = res;
       if (data.success) setSummary(data.data);
     } catch (e) { /* ignore */ }
   };
 
   const fetchNextNumber = async (type, date) => {
     try {
-      const res = await fetch(`${API}/vouchers/next-number/${type}?date=${date}`, { headers });
-      const data = await res.json();
+      const res = await api.get(`/vouchers/next-number/${type}?date=${date}`);
+      const data = res;
       if (data.success) setNextNumber(data.data.next_number);
     } catch (e) { /* ignore */ }
   };
@@ -180,7 +179,7 @@ export default function Vouchers() {
     e.preventDefault();
     setError(''); setSuccess('');
     try {
-      const url = editingVoucher ? `${API}/vouchers/${editingVoucher.id}` : `${API}/vouchers`;
+      const url = editingVoucher ? `/vouchers/${editingVoucher.id}` : `/vouchers`;
       const method = editingVoucher ? 'PUT' : 'POST';
       const body = {
         ...form,
@@ -190,8 +189,8 @@ export default function Vouchers() {
         party_id: form.party_id ? parseInt(form.party_id) : null,
         reference_id: form.reference_id ? parseInt(form.reference_id) : null,
       };
-      const res = await fetch(url, { method, headers, body: JSON.stringify(body) });
-      const data = await res.json();
+      const res = await api.request({ url, method, data: body });
+      const data = res;
       if (data.success) {
         setSuccess(data.message);
         setShowModal(false);
@@ -208,8 +207,8 @@ export default function Vouchers() {
 
   const handleApprove = async (id) => {
     try {
-      const res = await fetch(`${API}/vouchers/${id}/approve`, { method: 'POST', headers });
-      const data = await res.json();
+      const res = await api.post(`/vouchers/${id}/approve`);
+      const data = res;
       if (data.success) {
         setSuccess(data.message);
         fetchVouchers();
@@ -221,10 +220,8 @@ export default function Vouchers() {
   const handleCancel = async () => {
     if (!cancelReason.trim()) { setError('Cancellation reason is required'); return; }
     try {
-      const res = await fetch(`${API}/vouchers/${cancelModal.id}/cancel`, {
-        method: 'POST', headers, body: JSON.stringify({ reason: cancelReason })
-      });
-      const data = await res.json();
+      const res = await api.post(`/vouchers/${cancelModal.id}/cancel`, { reason: cancelReason });
+      const data = res;
       if (data.success) {
         setSuccess(data.message);
         setCancelModal(null);
@@ -239,10 +236,8 @@ export default function Vouchers() {
     const pendingIds = vouchers.filter(v => v.status === 'pending_approval').map(v => v.id);
     if (pendingIds.length === 0) return;
     try {
-      const res = await fetch(`${API}/vouchers/bulk-approve`, {
-        method: 'POST', headers, body: JSON.stringify({ voucher_ids: pendingIds })
-      });
-      const data = await res.json();
+      const res = await api.post(`/vouchers/bulk-approve`, { voucher_ids: pendingIds });
+      const data = res;
       if (data.success) { setSuccess(data.message); fetchVouchers(); fetchSummary(); }
       else setError(data.message);
     } catch (e) { setError('Failed to bulk approve'); }

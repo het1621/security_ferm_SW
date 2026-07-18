@@ -32,7 +32,14 @@ router.post('/pf/calculate', async (req, res) => {
     const result = pfCalculator.calculateContribution(value.basic_salary, value.cap_at_statutory);
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('PF calculate error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.PAYROLL,
+      feature: 'pf-gratuity',
+      extra: { message: 'PF calculate error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -45,7 +52,14 @@ router.get('/pf/accounts', async (req, res) => {
     const result = await pfCalculator.listAccounts(req.query);
     res.json({ success: true, ...result });
   } catch (err) {
-    logger.error('List PF accounts error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.PAYROLL,
+      feature: 'pf-gratuity',
+      extra: { message: 'List PF accounts error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -56,7 +70,14 @@ router.get('/pf/accounts/:empId', async (req, res) => {
     if (!account) return res.status(404).json({ success: false, message: 'PF account not found' });
     res.json({ success: true, data: account });
   } catch (err) {
-    logger.error('Get PF account error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.PAYROLL,
+      feature: 'pf-gratuity',
+      extra: { message: 'Get PF account error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -75,7 +96,14 @@ router.post('/pf/accounts', async (req, res) => {
     const result = await pfCalculator.createAccount(value.employee_id, value);
     res.status(201).json({ success: true, data: result });
   } catch (err) {
-    logger.error('Create PF account error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.PAYROLL,
+      feature: 'pf-gratuity',
+      extra: { message: 'Create PF account error:' }
+    });
     const status = err.message.includes('already exists') ? 409 : 500;
     res.status(status).json({ success: false, message: err.message });
   }
@@ -86,7 +114,14 @@ router.put('/pf/accounts/:empId', async (req, res) => {
     const result = await pfCalculator.updateAccount(parseInt(req.params.empId), req.body);
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('Update PF account error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.PAYROLL,
+      feature: 'pf-gratuity',
+      extra: { message: 'Update PF account error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -107,7 +142,14 @@ router.post('/pf/process', async (req, res) => {
     const result = await pfCalculator.processMonthly(value.employee_id, value.payroll_month, value.basic_salary);
     res.status(201).json({ success: true, data: result });
   } catch (err) {
-    logger.error('PF process error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.PAYROLL,
+      feature: 'pf-gratuity',
+      extra: { message: 'PF process error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -123,7 +165,14 @@ router.post('/pf/batch-process', async (req, res) => {
     const result = await pfCalculator.batchProcess(value.payroll_month);
     res.status(201).json({ success: true, data: result });
   } catch (err) {
-    logger.error('PF batch process error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.PAYROLL,
+      feature: 'pf-gratuity',
+      extra: { message: 'PF batch process error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -133,7 +182,14 @@ router.get('/pf/transactions/:empId', async (req, res) => {
     const result = await pfCalculator.getTransactions(parseInt(req.params.empId), req.query);
     res.json({ success: true, ...result });
   } catch (err) {
-    logger.error('PF transactions error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.PAYROLL,
+      feature: 'pf-gratuity',
+      extra: { message: 'PF transactions error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -143,7 +199,14 @@ router.get('/pf/interest/:empId', async (req, res) => {
     const result = await pfCalculator.calculateInterest(parseInt(req.params.empId), req.query.fy);
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('PF interest error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.PAYROLL,
+      feature: 'pf-gratuity',
+      extra: { message: 'PF interest error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -167,7 +230,14 @@ router.post('/pf/loans', async (req, res) => {
     const result = await pfCalculator.createLoan(value.employee_id, value);
     res.status(201).json({ success: true, data: result });
   } catch (err) {
-    logger.error('PF loan create error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.PAYROLL,
+      feature: 'pf-gratuity',
+      extra: { message: 'PF loan create error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -177,7 +247,14 @@ router.post('/pf/loans/:id/approve', async (req, res) => {
     const result = await pfCalculator.approveLoan(parseInt(req.params.id), req.user.id);
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('PF loan approve error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.PAYROLL,
+      feature: 'pf-gratuity',
+      extra: { message: 'PF loan approve error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -187,7 +264,14 @@ router.get('/pf/loans/:empId', async (req, res) => {
     const result = await pfCalculator.getLoans(parseInt(req.params.empId));
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('Get PF loans error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.PAYROLL,
+      feature: 'pf-gratuity',
+      extra: { message: 'Get PF loans error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -209,7 +293,14 @@ router.post('/gratuity/calculate', async (req, res) => {
     const result = gratuityCalculator.calculate(value.basic_salary, value.da, value.years_of_service);
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('Gratuity calc error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.PAYROLL,
+      feature: 'pf-gratuity',
+      extra: { message: 'Gratuity calc error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -219,7 +310,14 @@ router.get('/gratuity/estimate/:empId', async (req, res) => {
     const result = await gratuityCalculator.getEmployeeEstimate(parseInt(req.params.empId));
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('Gratuity estimate error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.PAYROLL,
+      feature: 'pf-gratuity',
+      extra: { message: 'Gratuity estimate error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -236,7 +334,14 @@ router.post('/gratuity/accrue', async (req, res) => {
     const result = await gratuityCalculator.processMonthlyAccrual(value.employee_id, value.accrual_month);
     res.status(201).json({ success: true, data: result });
   } catch (err) {
-    logger.error('Gratuity accrue error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.PAYROLL,
+      feature: 'pf-gratuity',
+      extra: { message: 'Gratuity accrue error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -252,7 +357,14 @@ router.post('/gratuity/batch-accrue', async (req, res) => {
     const result = await gratuityCalculator.batchAccrual(value.accrual_month);
     res.status(201).json({ success: true, data: result });
   } catch (err) {
-    logger.error('Gratuity batch accrue error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.PAYROLL,
+      feature: 'pf-gratuity',
+      extra: { message: 'Gratuity batch accrue error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -270,7 +382,14 @@ router.post('/gratuity/payout', async (req, res) => {
     const result = await gratuityCalculator.createPayout(value.employee_id, value.separation_date, value.separation_reason);
     res.status(201).json({ success: true, data: result });
   } catch (err) {
-    logger.error('Gratuity payout error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.PAYROLL,
+      feature: 'pf-gratuity',
+      extra: { message: 'Gratuity payout error:' }
+    });
     const status = err.message.includes('years') ? 400 : 500;
     res.status(status).json({ success: false, message: err.message });
   }
@@ -281,7 +400,14 @@ router.post('/gratuity/payout/:id/approve', async (req, res) => {
     const result = await gratuityCalculator.approvePayout(parseInt(req.params.id), req.user.id);
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('Gratuity approve error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.PAYROLL,
+      feature: 'pf-gratuity',
+      extra: { message: 'Gratuity approve error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -291,7 +417,14 @@ router.post('/gratuity/payout/:id/pay', async (req, res) => {
     const result = await gratuityCalculator.markPayoutPaid(parseInt(req.params.id), req.body);
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('Gratuity pay error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.PAYROLL,
+      feature: 'pf-gratuity',
+      extra: { message: 'Gratuity pay error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -301,7 +434,14 @@ router.get('/gratuity/payouts', async (req, res) => {
     const result = await gratuityCalculator.getPayouts(req.query);
     res.json({ success: true, ...result });
   } catch (err) {
-    logger.error('Get payouts error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.PAYROLL,
+      feature: 'pf-gratuity',
+      extra: { message: 'Get payouts error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -311,7 +451,14 @@ router.get('/gratuity/liability-report', async (req, res) => {
     const result = await gratuityCalculator.getLiabilityReport();
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('Liability report error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.PAYROLL,
+      feature: 'pf-gratuity',
+      extra: { message: 'Liability report error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });

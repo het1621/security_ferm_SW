@@ -24,7 +24,14 @@ router.get('/rules', requirePermission('manage_settings'), async (req, res) => {
     const rules = await workflowEngine.getRules(req.query);
     res.json({ success: true, data: rules });
   } catch (err) {
-    logger.error('List rules error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.REPORTING,
+      feature: 'workflows',
+      extra: { message: 'List rules error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -35,7 +42,14 @@ router.get('/rules/:id', async (req, res) => {
     if (!rule) return res.status(404).json({ success: false, message: 'Rule not found' });
     res.json({ success: true, data: rule });
   } catch (err) {
-    logger.error('Get rule error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.REPORTING,
+      feature: 'workflows',
+      extra: { message: 'Get rule error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -59,7 +73,14 @@ router.post('/rules', requirePermission('manage_settings'), async (req, res) => 
     const result = await workflowEngine.createRule(value);
     res.status(201).json({ success: true, data: result });
   } catch (err) {
-    logger.error('Create rule error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.REPORTING,
+      feature: 'workflows',
+      extra: { message: 'Create rule error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -69,7 +90,14 @@ router.put('/rules/:id', requirePermission('manage_settings'), async (req, res) 
     const result = await workflowEngine.updateRule(parseInt(req.params.id), req.body);
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('Update rule error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.REPORTING,
+      feature: 'workflows',
+      extra: { message: 'Update rule error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -79,7 +107,14 @@ router.delete('/rules/:id', requirePermission('manage_settings'), async (req, re
     await workflowEngine.deleteRule(parseInt(req.params.id));
     res.json({ success: true, message: 'Rule deactivated' });
   } catch (err) {
-    logger.error('Delete rule error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.REPORTING,
+      feature: 'workflows',
+      extra: { message: 'Delete rule error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -93,7 +128,14 @@ router.get('/notifications', async (req, res) => {
     const result = await workflowEngine.getNotifications(req.user.id, req.query);
     res.json({ success: true, ...result });
   } catch (err) {
-    logger.error('Get notifications error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.REPORTING,
+      feature: 'workflows',
+      extra: { message: 'Get notifications error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -103,7 +145,14 @@ router.post('/notifications/:id/read', async (req, res) => {
     await workflowEngine.markRead(parseInt(req.params.id));
     res.json({ success: true });
   } catch (err) {
-    logger.error('Mark read error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.REPORTING,
+      feature: 'workflows',
+      extra: { message: 'Mark read error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -113,7 +162,14 @@ router.post('/notifications/read-all', async (req, res) => {
     await workflowEngine.markAllRead(req.user.id);
     res.json({ success: true });
   } catch (err) {
-    logger.error('Mark all read error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.REPORTING,
+      feature: 'workflows',
+      extra: { message: 'Mark all read error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -127,7 +183,14 @@ router.post('/scan-overdue', requirePermission('manage_payroll'), async (req, re
     const result = await workflowEngine.scanOverdueInvoices();
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('Scan overdue error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.REPORTING,
+      feature: 'workflows',
+      extra: { message: 'Scan overdue error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -141,7 +204,14 @@ router.get('/auto-approvals', async (req, res) => {
     const rules = await workflowEngine.getAutoApprovalRules();
     res.json({ success: true, data: rules });
   } catch (err) {
-    logger.error('List auto-approvals error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.REPORTING,
+      feature: 'workflows',
+      extra: { message: 'List auto-approvals error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -162,7 +232,14 @@ router.post('/auto-approvals', requirePermission('manage_settings'), async (req,
     const result = await workflowEngine.createAutoApprovalRule(value);
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('Create auto-approval error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.REPORTING,
+      feature: 'workflows',
+      extra: { message: 'Create auto-approval error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -176,7 +253,14 @@ router.get('/logs', requirePermission('manage_settings'), async (req, res) => {
     const logs = await workflowEngine.getLogs(req.query);
     res.json({ success: true, data: logs });
   } catch (err) {
-    logger.error('List logs error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.REPORTING,
+      feature: 'workflows',
+      extra: { message: 'List logs error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -198,7 +282,14 @@ router.post('/execute', requirePermission('manage_settings'), async (req, res) =
     const result = await workflowEngine.executeRulesForEvent(value.trigger_entity, value.trigger_event, value.entity_data);
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('Execute workflow error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.REPORTING,
+      feature: 'workflows',
+      extra: { message: 'Execute workflow error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Landmark, CheckCircle, XCircle, Calendar, RefreshCw, FileText, AlertCircle } from 'lucide-react';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+import api from '../services/api';
 
 export default function BankReconciliation() {
   const { token } = useAuth();
@@ -27,12 +27,11 @@ export default function BankReconciliation() {
     bank_name: '', ifsc_code: '', branch: '', opening_balance: 0, opening_balance_date: ''
   });
 
-  const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
-
+  
   const fetchAccounts = async () => {
     try {
-      const res = await fetch(`${API}/bank-accounts?active_only=true`, { headers });
-      const data = await res.json();
+      const res = await api.get(`/bank-accounts?active_only=true`);
+      const data = res;
       if (data.success) {
         setAccounts(data.data);
         if (!selectedAccount && data.data.length > 0) {
@@ -52,8 +51,8 @@ export default function BankReconciliation() {
       if (fromDate) params.append('from_date', fromDate);
       if (toDate) params.append('to_date', toDate);
       if (showReconciled) params.append('show_reconciled', 'true');
-      const res = await fetch(`${API}/bank-reconciliation/${selectedAccount}?${params}`, { headers });
-      const data = await res.json();
+      const res = await api.get(`/bank-reconciliation/${selectedAccount}?${params}`);
+      const data = res;
       if (data.success) {
         setEntries(data.data.entries);
         setSummary(data.data.summary);
@@ -68,8 +67,8 @@ export default function BankReconciliation() {
     try {
       const params = new URLSearchParams();
       if (toDate) params.append('as_on_date', toDate);
-      const res = await fetch(`${API}/bank-reconciliation/statement/${selectedAccount}?${params}`, { headers });
-      const data = await res.json();
+      const res = await api.get(`/bank-reconciliation/statement/${selectedAccount}?${params}`);
+      const data = res;
       if (data.success) setBrs(data.data);
       else setError(data.message);
     } catch (e) { setError('Failed to fetch BRS'); }
@@ -110,10 +109,8 @@ export default function BankReconciliation() {
         bank_account_id: parseInt(selectedAccount),
         bank_statement_date: toDate || new Date().toISOString().split('T')[0],
       }));
-      const res = await fetch(`${API}/bank-reconciliation/reconcile`, {
-        method: 'POST', headers, body: JSON.stringify({ entries: entriesToReconcile })
-      });
-      const data = await res.json();
+      const res = await api.post(`/bank-reconciliation/reconcile`, { entries: entriesToReconcile });
+      const data = res;
       if (data.success) {
         setSuccess(data.message);
         setSelectedEntries(new Set());
@@ -125,11 +122,10 @@ export default function BankReconciliation() {
 
   const handleUnreconcile = async (voucherIds) => {
     try {
-      const res = await fetch(`${API}/bank-reconciliation/unreconcile`, {
-        method: 'POST', headers,
-        body: JSON.stringify({ voucher_ids: voucherIds, bank_account_id: parseInt(selectedAccount) })
+      const res = await api.post(`/bank-reconciliation/unreconcile`, {
+        voucher_ids: voucherIds, bank_account_id: parseInt(selectedAccount) 
       });
-      const data = await res.json();
+      const data = res;
       if (data.success) { setSuccess(data.message); fetchEntries(); }
       else setError(data.message);
     } catch (e) { setError('Failed to unreconcile'); }
@@ -139,13 +135,11 @@ export default function BankReconciliation() {
   const handleAddAccount = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(`${API}/bank-accounts`, {
-        method: 'POST', headers, body: JSON.stringify({
-          ...accountForm,
-          opening_balance: parseFloat(accountForm.opening_balance) || 0
-        })
+      const res = await api.post(`/bank-accounts`, {
+        ...accountForm,
+        opening_balance: parseFloat(accountForm.opening_balance) || 0
       });
-      const data = await res.json();
+      const data = res;
       if (data.success) {
         setSuccess('Bank account added');
         setShowAddAccount(false);

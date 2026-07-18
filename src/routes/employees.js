@@ -205,12 +205,11 @@ router.post('/import', upload.single('file'), async (req, res) => {
 
     // Cleanup the uploaded file
     fs.unlinkSync(filePath);
-    
-    await logAudit(req, 'employees', null, 'create', \`Bulk imported \${importedCount} employees\`);
+    await logAudit(req, 'employees', null, 'create', `Bulk imported ${importedCount} employees`);
 
     res.json({
       success: true,
-      message: \`Successfully imported \${importedCount} employees. Skipped \${skippedCount} invalid rows.\`,
+      message: `Successfully imported ${importedCount} employees. Skipped ${skippedCount} invalid rows.`,
       data: { imported: importedCount, skipped: skippedCount }
     });
   } catch (error) {

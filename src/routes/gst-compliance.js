@@ -24,7 +24,14 @@ router.get('/config', async (req, res) => {
     const config = await gstService.getConfig();
     res.json({ success: true, data: config });
   } catch (err) {
-    logger.error('GST config error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.GST,
+      feature: 'gst-compliance',
+      extra: { message: 'GST config error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -47,7 +54,14 @@ router.post('/config', requirePermission('manage_settings'), async (req, res) =>
     const result = await gstService.saveConfig(value);
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('Save GST config error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.GST,
+      feature: 'gst-compliance',
+      extra: { message: 'Save GST config error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -61,7 +75,14 @@ router.get('/hsn-sac', async (req, res) => {
     const codes = await gstService.getHSNSACCodes(req.query);
     res.json({ success: true, data: codes });
   } catch (err) {
-    logger.error('HSN/SAC list error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.GST,
+      feature: 'gst-compliance',
+      extra: { message: 'HSN/SAC list error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -83,7 +104,14 @@ router.post('/hsn-sac', requirePermission('manage_settings'), async (req, res) =
     const result = await gstService.addHSNSACCode(value);
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('Add HSN/SAC error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.GST,
+      feature: 'gst-compliance',
+      extra: { message: 'Add HSN/SAC error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -105,7 +133,14 @@ router.post('/calculate', async (req, res) => {
     const result = gstService.calculateGST(value.taxable_value, value.gst_rate, value.tax_type);
     res.json({ success: true, data: { ...result, taxable_value: value.taxable_value, gst_rate: value.gst_rate } });
   } catch (err) {
-    logger.error('GST calc error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.GST,
+      feature: 'gst-compliance',
+      extra: { message: 'GST calc error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -128,7 +163,14 @@ router.post('/classify-supply', async (req, res) => {
 
     res.json({ success: true, data: { supply_type: supplyType, tax_type: taxType } });
   } catch (err) {
-    logger.error('Classify supply error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.GST,
+      feature: 'gst-compliance',
+      extra: { message: 'Classify supply error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -148,7 +190,18 @@ router.post('/gstr1/generate', requirePermission('manage_payroll'), async (req, 
     const result = await gstService.generateGSTR1(value.return_period);
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('GSTR-1 generation error:', err);
+    if (err.message.includes('GST configuration not found')) {
+      return res.status(400).json({ success: false, message: err.message });
+    }
+    
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.GST,
+      feature: 'gst-compliance',
+      extra: { message: 'GSTR-1 generation error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -168,7 +221,14 @@ router.post('/gstr3b/generate', requirePermission('manage_payroll'), async (req,
     const result = await gstService.generateGSTR3B(value.return_period);
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('GSTR-3B generation error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.GST,
+      feature: 'gst-compliance',
+      extra: { message: 'GSTR-3B generation error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -182,7 +242,14 @@ router.get('/filings', async (req, res) => {
     const filings = await gstService.getFilings(req.query);
     res.json({ success: true, data: filings });
   } catch (err) {
-    logger.error('List filings error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.GST,
+      feature: 'gst-compliance',
+      extra: { message: 'List filings error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -193,7 +260,14 @@ router.get('/filings/:id', async (req, res) => {
     if (!filing) return res.status(404).json({ success: false, message: 'Filing not found' });
     res.json({ success: true, data: filing });
   } catch (err) {
-    logger.error('Get filing error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.GST,
+      feature: 'gst-compliance',
+      extra: { message: 'Get filing error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -207,7 +281,14 @@ router.post('/filings/:id/mark-filed', requirePermission('manage_settings'), asy
     const result = await gstService.markFiled(parseInt(req.params.id), value.arn_number);
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('Mark filed error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.GST,
+      feature: 'gst-compliance',
+      extra: { message: 'Mark filed error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -226,7 +307,14 @@ router.get('/filings/:id/download', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(filing.json_data);
   } catch (err) {
-    logger.error('Download filing error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.GST,
+      feature: 'gst-compliance',
+      extra: { message: 'Download filing error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });

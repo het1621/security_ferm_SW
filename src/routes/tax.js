@@ -46,7 +46,14 @@ router.post('/compute', requirePermission('manage_payroll'), async (req, res) =>
     const result = taxCalculator.computeAnnualTax(value);
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('Tax compute error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.TAX,
+      feature: 'tax',
+      extra: { message: 'Tax compute error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -69,7 +76,14 @@ router.post('/monthly-tds', requirePermission('manage_payroll'), async (req, res
     const result = taxCalculator.computeMonthlyTDS(value);
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('Monthly TDS error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.TAX,
+      feature: 'tax',
+      extra: { message: 'Monthly TDS error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -89,7 +103,14 @@ router.post('/compare-regimes', requirePermission('manage_payroll'), async (req,
     const result = taxCalculator.compareRegimes(value);
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('Regime compare error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.TAX,
+      feature: 'tax',
+      extra: { message: 'Regime compare error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -102,7 +123,14 @@ router.get('/professional-tax/:state', async (req, res) => {
     const pt = await taxCalculator.getProfessionalTax(req.params.state, salary);
     res.json({ success: true, data: { state: req.params.state, salary, monthly_tax: pt } });
   } catch (err) {
-    logger.error('PT lookup error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.TAX,
+      feature: 'tax',
+      extra: { message: 'PT lookup error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -114,7 +142,14 @@ router.get('/declaration/:empId/:fy', async (req, res) => {
     const decl = await taxCalculator.getDeclaration(parseInt(req.params.empId), req.params.fy);
     res.json({ success: true, data: decl });
   } catch (err) {
-    logger.error('Get declaration error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.TAX,
+      feature: 'tax',
+      extra: { message: 'Get declaration error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -147,7 +182,14 @@ router.post('/declaration/:empId/:fy', requirePermission('manage_payroll'), asyn
     const result = await taxCalculator.saveDeclaration(parseInt(req.params.empId), req.params.fy, value);
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('Save declaration error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.TAX,
+      feature: 'tax',
+      extra: { message: 'Save declaration error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -157,7 +199,14 @@ router.post('/declaration/:empId/:fy/submit', async (req, res) => {
     const result = await taxCalculator.submitDeclaration(parseInt(req.params.empId), req.params.fy);
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('Submit declaration error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.TAX,
+      feature: 'tax',
+      extra: { message: 'Submit declaration error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -167,7 +216,14 @@ router.post('/declaration/:empId/:fy/verify', requirePermission('manage_payroll'
     const result = await taxCalculator.verifyDeclaration(parseInt(req.params.empId), req.params.fy, req.user.id);
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('Verify declaration error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.TAX,
+      feature: 'tax',
+      extra: { message: 'Verify declaration error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -179,7 +235,14 @@ router.get('/history/:empId/:fy', requirePermission('manage_payroll'), async (re
     const history = await taxCalculator.getTaxHistory(parseInt(req.params.empId), req.params.fy);
     res.json({ success: true, data: history });
   } catch (err) {
-    logger.error('Tax history error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.TAX,
+      feature: 'tax',
+      extra: { message: 'Tax history error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -256,7 +319,14 @@ router.get('/employee-summary/:empId', requirePermission('manage_payroll'), asyn
       },
     });
   } catch (err) {
-    logger.error('Employee tax summary error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.TAX,
+      feature: 'tax',
+      extra: { message: 'Employee tax summary error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });

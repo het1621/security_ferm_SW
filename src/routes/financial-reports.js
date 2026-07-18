@@ -35,7 +35,14 @@ router.post('/cash-flow', async (req, res) => {
     );
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('Cash flow error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.REPORTING,
+      feature: 'financial-reports',
+      extra: { message: 'Cash flow error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -62,7 +69,14 @@ router.post('/kpis/calculate', async (req, res) => {
     const result = reportService.calculateKPIs(value);
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('KPI calc error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.REPORTING,
+      feature: 'financial-reports',
+      extra: { message: 'KPI calc error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -82,7 +96,14 @@ router.post('/snapshots/generate', async (req, res) => {
     const result = await reportService.generateSnapshot(value.month);
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('Snapshot error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.REPORTING,
+      feature: 'financial-reports',
+      extra: { message: 'Snapshot error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -93,7 +114,14 @@ router.get('/snapshots', async (req, res) => {
     const result = await reportService.getSnapshots(fy);
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('List snapshots error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.REPORTING,
+      feature: 'financial-reports',
+      extra: { message: 'List snapshots error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -107,7 +135,14 @@ router.get('/budgets', async (req, res) => {
     const result = await reportService.getBudgets(req.query.financial_year);
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('List budgets error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.REPORTING,
+      feature: 'financial-reports',
+      extra: { message: 'List budgets error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -118,7 +153,14 @@ router.get('/budgets/:id', async (req, res) => {
     if (!result) return res.status(404).json({ success: false, message: 'Budget not found' });
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('Get budget error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.REPORTING,
+      feature: 'financial-reports',
+      extra: { message: 'Get budget error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -139,7 +181,14 @@ router.post('/budgets', async (req, res) => {
     const result = await reportService.createBudget(value);
     res.status(201).json({ success: true, data: result });
   } catch (err) {
-    logger.error('Create budget error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.REPORTING,
+      feature: 'financial-reports',
+      extra: { message: 'Create budget error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -163,7 +212,14 @@ router.post('/budgets/:id/items', async (req, res) => {
     const result = await reportService.addBudgetItem(parseInt(req.params.id), value);
     res.status(201).json({ success: true, data: result });
   } catch (err) {
-    logger.error('Add budget item error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.REPORTING,
+      feature: 'financial-reports',
+      extra: { message: 'Add budget item error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -173,7 +229,14 @@ router.post('/budgets/:id/approve', async (req, res) => {
     const result = await reportService.approveBudget(parseInt(req.params.id), req.user.id);
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('Approve budget error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.REPORTING,
+      feature: 'financial-reports',
+      extra: { message: 'Approve budget error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -187,7 +250,14 @@ router.get('/variance/:budgetId', async (req, res) => {
     const result = await reportService.getVarianceAnalysis(parseInt(req.params.budgetId));
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('Variance analysis error:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.REPORTING,
+      feature: 'financial-reports',
+      extra: { message: 'Variance analysis error:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });

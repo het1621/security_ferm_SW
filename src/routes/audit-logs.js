@@ -3,6 +3,7 @@ const router = express.Router();
 const { query } = require('../database/connection');
 const { authMiddleware, requirePermission } = require('../middleware/auth');
 const logger = require('../utils/logger');
+const { logError, ERROR_SEVERITY, ERROR_CATEGORY } = require('../utils/enhancedErrorLogger');
 
 router.use(authMiddleware);
 router.use(requirePermission('manage_settings')); // Only admins/settings managers can view audit logs
@@ -56,7 +57,14 @@ router.get('/', async (req, res) => {
       }
     });
   } catch (error) {
-    logger.error('Error fetching audit logs:', error);
+    logError({
+      error,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.SECURITY,
+      feature: 'audit-logs-fetch',
+      extra: { query: req.query }
+    });
     res.status(500).json({ success: false, message: 'Failed to fetch audit logs' });
   }
 });

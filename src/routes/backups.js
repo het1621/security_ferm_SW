@@ -5,6 +5,7 @@ const fs = require('fs');
 const { authMiddleware, requirePermission } = require('../middleware/auth');
 const backupService = require('../services/backupService');
 const logger = require('../utils/logger');
+const { logError, ERROR_SEVERITY, ERROR_CATEGORY } = require('../utils/enhancedErrorLogger');
 
 router.use(authMiddleware);
 router.use(requirePermission('manage_settings')); // Restrict to admin
@@ -15,7 +16,12 @@ router.get('/', (req, res) => {
     const backups = backupService.getAvailableBackups();
     res.json({ success: true, data: backups });
   } catch (error) {
-    logger.error('Error fetching backups:', error);
+    logError({
+      error, req,
+      severity: ERROR_SEVERITY.HIGH, category: ERROR_CATEGORY.BACKUP,
+      feature: 'backups-fetch',
+      extra: { operation: 'fetch_backups' }
+    });
     res.status(500).json({ success: false, message: 'Failed to fetch backups' });
   }
 });
@@ -26,7 +32,12 @@ router.post('/create', async (req, res) => {
     const backupPath = await backupService.createBackup();
     res.json({ success: true, message: 'Backup created successfully', data: { path: backupPath } });
   } catch (error) {
-    logger.error('Error creating manual backup:', error);
+    logError({
+      error, req,
+      severity: ERROR_SEVERITY.CRITICAL, category: ERROR_CATEGORY.BACKUP,
+      feature: 'backups-create',
+      extra: { operation: 'create_backup' }
+    });
     res.status(500).json({ success: false, message: 'Failed to create backup' });
   }
 });
@@ -49,7 +60,12 @@ router.get('/download/:filename', (req, res) => {
 
     res.download(filePath, filename);
   } catch (error) {
-    logger.error('Error downloading backup:', error);
+    logError({
+      error, req,
+      severity: ERROR_SEVERITY.HIGH, category: ERROR_CATEGORY.BACKUP,
+      feature: 'backups-download',
+      extra: { filename: req.params.filename }
+    });
     res.status(500).json({ success: false, message: 'Failed to download backup' });
   }
 });

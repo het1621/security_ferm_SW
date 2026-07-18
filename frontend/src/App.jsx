@@ -1,6 +1,7 @@
 import { HashRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import Layout from './components/layout/Layout';
+import './services/errorInterceptor'; // Import to initialize
 
 // Pages
 import Login from './pages/Login';

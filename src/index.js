@@ -151,46 +151,8 @@ app.get('/health', (req, res) => {
 const { startScheduledJobs } = require('./utils/scheduledJobs');
 
 // Global error handler — never leak stack traces in production
-app.use(async (err, req, res, next) => {
-  const isDev = process.env.NODE_ENV !== 'production';
-  if (isDev) {
-    logger.error('Unhandled Error:', err.message, err.stack);
-  } else {
-    // In production: log only the message, not the stack (which may contain data)
-    logger.error(`[ERROR] ${new Date().toISOString()} | ${req.method} ${req.url} | ${err.message}`);
-  }
-  
-  // Try to log the error to DB
-  try {
-    const { query } = require('./database/connection');
-    const client_ip = req.ip || req.connection.remoteAddress;
-    let user_id = null;
-    if (req.user && req.user.userId) user_id = req.user.userId;
-    
-    await query(
-      `INSERT INTO error_logs (error_type, error_message, stack_trace, endpoint, method, user_id, client_ip)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [
-        err.name || 'ServerError',
-        err.message || 'Unknown server error',
-        err.stack || null,
-        req.originalUrl || req.url,
-        req.method,
-        user_id,
-        client_ip
-      ]
-    );
-  } catch (dbErr) {
-    logger.error('Failed to save error log to DB:', dbErr);
-  }
-
-  const status = err.status || 500;
-  res.status(status).json({
-    success: false,
-    message: err.message || 'Internal server error',
-    ...(isDev && { stack: err.stack }),
-  });
-});
+const globalErrorHandler = require('./middleware/globalErrorHandler');
+app.use(globalErrorHandler);
 
 // Serve React frontend
 app.use(express.static(path.join(__dirname, '..', 'frontend-dist')));

@@ -305,11 +305,47 @@ CREATE TABLE IF NOT EXISTS error_logs (
     user_id INTEGER,
     client_ip VARCHAR(45),
     additional_data TEXT,
+    severity VARCHAR(20) DEFAULT 'medium',
+    feature VARCHAR(100),
+    is_critical BOOLEAN DEFAULT false,
     is_resolved INTEGER DEFAULT 0,
+    assigned_to INTEGER REFERENCES users(id),
+    resolution_notes TEXT,
     resolved_by INTEGER,
     resolved_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- ============================================================
+-- ERROR SUMMARY & NOTIFICATIONS
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS error_summary (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    date DATE UNIQUE,
+    total_errors INTEGER DEFAULT 0,
+    critical_errors INTEGER DEFAULT 0,
+    high_errors INTEGER DEFAULT 0,
+    medium_errors INTEGER DEFAULT 0,
+    low_errors INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS error_notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    error_log_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    notified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    acknowledged BOOLEAN DEFAULT false,
+    acknowledged_at TIMESTAMP,
+    FOREIGN KEY (error_log_id) REFERENCES error_logs(id),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_errors_severity_created ON error_logs(severity, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_errors_feature_created ON error_logs(feature, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_errors_is_resolved ON error_logs(is_resolved);
 
 -- ============================================================
 -- DEFAULT ADMIN USER (password: Admin@123)

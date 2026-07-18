@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { errorInterceptor } from './errorInterceptor';
 
 const savedServerIP = localStorage.getItem('serverIP');
 const defaultAPI = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -17,6 +18,12 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  
+  // Prevent double slashes when combining baseURL and url
+  if (config.url && config.url.startsWith('/')) {
+    config.url = config.url.substring(1);
+  }
+
   return config;
 });
 
@@ -81,28 +88,20 @@ api.interceptors.response.use(
       window.dispatchEvent(new Event('auth-error'));
     }
 
-    // Try to silently log this error to our new error endpoint if it's a 5xx error or network failure
-    const isServerError = !error.response || error.response?.status >= 500;
-    if (isServerError && !error.config?.url?.includes('/errors')) {
-      try {
-        axios.post(`${baseURL}/errors`, {
-          error_type: `API Error ${error.response?.status || 'Network'}`,
-          error_message: error.response?.data?.message || error.message || 'Unknown API Error',
-          endpoint: error.config?.url,
-          method: error.config?.method?.toUpperCase(),
-          additional_data: { 
-            data: error.config?.data, 
-            statusText: error.response?.statusText 
-          }
-        }, {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': localStorage.getItem('token') ? `Bearer ${localStorage.getItem('token')}` : undefined
-          }
-        }).catch(() => {}); // catch and ignore if logging fails
-      } catch (e) {
-        // ignore
-      }
+    // Log all API errors using the central error interceptor
+    if (!error.config?.url?.includes('/errors')) {
+      errorInterceptor.logFrontendError({
+        error_type: `API Error ${error.response?.status || 'Network'}`,
+        error_message: error.response?.data?.message || error.message || 'API call failed',
+        stack_trace: error.stack,
+        endpoint: error.config?.url,
+        method: error.config?.method?.toUpperCase(),
+        additional_data: {
+          status_code: error.response?.status,
+          status_text: error.response?.statusText,
+          response_data: error.response?.data
+        }
+      });
     }
 
     return Promise.reject(error.response?.data || { message: 'An unexpected error occurred' });

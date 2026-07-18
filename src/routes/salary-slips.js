@@ -44,7 +44,14 @@ router.post('/generate', async (req, res) => {
     logger.info(`✅ Salary slip generated: Employee #${value.employee_id}, Month ${value.payroll_month}`);
     res.status(201).json({ success: true, data: result });
   } catch (err) {
-    logger.error('Failed to generate salary slip:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.PAYROLL,
+      feature: 'salary-slips',
+      extra: { message: 'Failed to generate salary slip:' }
+    });
     const status = err.message.includes('already exists') ? 409 : 
                    err.message.includes('not found') ? 404 : 500;
     res.status(status).json({ success: false, message: err.message });
@@ -63,7 +70,14 @@ router.post('/batch-generate', async (req, res) => {
     logger.info(`✅ Batch salary slips: ${result.generated} generated, ${result.skipped} skipped, ${result.errors} errors`);
     res.status(201).json({ success: true, data: result });
   } catch (err) {
-    logger.error('Failed to batch generate:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.PAYROLL,
+      feature: 'salary-slips',
+      extra: { message: 'Failed to batch generate:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -75,7 +89,14 @@ router.get('/', async (req, res) => {
     const result = await salarySlipService.findAll(req.query);
     res.json({ success: true, ...result });
   } catch (err) {
-    logger.error('Failed to list salary slips:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.PAYROLL,
+      feature: 'salary-slips',
+      extra: { message: 'Failed to list salary slips:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -86,7 +107,14 @@ router.get('/:id', async (req, res) => {
     if (!result) return res.status(404).json({ success: false, message: 'Salary slip not found' });
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('Failed to get salary slip:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.PAYROLL,
+      feature: 'salary-slips',
+      extra: { message: 'Failed to get salary slip:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -99,7 +127,14 @@ router.post('/:id/submit', async (req, res) => {
     logger.info(`📋 Salary slip #${req.params.id} submitted for approval`);
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('Failed to submit for approval:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.PAYROLL,
+      feature: 'salary-slips',
+      extra: { message: 'Failed to submit for approval:' }
+    });
     res.status(400).json({ success: false, message: err.message });
   }
 });
@@ -110,7 +145,14 @@ router.post('/:id/approve', async (req, res) => {
     logger.info(`✅ Salary slip #${req.params.id} approved by ${req.user.userId}`);
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('Failed to approve:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.PAYROLL,
+      feature: 'salary-slips',
+      extra: { message: 'Failed to approve:' }
+    });
     res.status(400).json({ success: false, message: err.message });
   }
 });
@@ -127,7 +169,14 @@ router.post('/bulk-approve', async (req, res) => {
     logger.info(`✅ Bulk approved ${result.approved} slips for ${value.payroll_month}`);
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('Failed to bulk approve:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.PAYROLL,
+      feature: 'salary-slips',
+      extra: { message: 'Failed to bulk approve:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -145,7 +194,14 @@ router.post('/:id/pay', async (req, res) => {
     logger.info(`💰 Salary slip #${req.params.id} marked as paid`);
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('Failed to mark as paid:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.PAYROLL,
+      feature: 'salary-slips',
+      extra: { message: 'Failed to mark as paid:' }
+    });
     res.status(400).json({ success: false, message: err.message });
   }
 });
@@ -156,7 +212,14 @@ router.post('/:id/cancel', async (req, res) => {
     logger.info(`🗑️ Salary slip #${req.params.id} cancelled`);
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('Failed to cancel:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.PAYROLL,
+      feature: 'salary-slips',
+      extra: { message: 'Failed to cancel:' }
+    });
     res.status(400).json({ success: false, message: err.message });
   }
 });

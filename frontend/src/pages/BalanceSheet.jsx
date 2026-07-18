@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { BarChart3, Download, RefreshCw, Calendar, GitCompare } from 'lucide-react';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+import api from '../services/api';
 
 export default function BalanceSheet() {
   const { token } = useAuth();
@@ -13,19 +13,18 @@ export default function BalanceSheet() {
   const [asOnDate, setAsOnDate] = useState(new Date().toISOString().split('T')[0]);
   const [compare, setCompare] = useState(false);
 
-  const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+
 
   const fetchBalanceSheet = async () => {
     setLoading(true); setError('');
     try {
       const params = new URLSearchParams({ as_on_date: asOnDate });
       if (compare) params.append('compare', 'true');
-      const res = await fetch(`${API}/balance-sheet?${params}`, { headers });
-      const json = await res.json();
-      if (json.success) setData(json.data);
-      else setError(json.message);
+      const res = await api.get(`/balance-sheet?${params}`);
+      if (res.success) setData(res.data);
+      else setError(res.message);
     } catch (e) {
-      setError('Failed to fetch balance sheet');
+      setError(e.message || 'Failed to fetch balance sheet');
     }
     setLoading(false);
   };
@@ -34,13 +33,12 @@ export default function BalanceSheet() {
 
   const handleGenerate = async () => {
     try {
-      const res = await fetch(`${API}/balance-sheet/generate`, {
-        method: 'POST', headers, body: JSON.stringify({ as_on_date: asOnDate })
-      });
-      const json = await res.json();
-      if (json.success) setSuccess('Balance sheet archived successfully!');
-      else setError(json.message);
-    } catch (e) { setError('Failed to generate'); }
+      const res = await api.post('/balance-sheet/generate', { as_on_date: asOnDate });
+      if (res.success) setSuccess('Balance sheet archived successfully!');
+      else setError(res.message);
+    } catch (e) { 
+      setError(e.message || 'Failed to generate'); 
+    }
     setTimeout(() => setSuccess(''), 3000);
   };
 

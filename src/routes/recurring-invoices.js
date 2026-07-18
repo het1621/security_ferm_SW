@@ -70,7 +70,14 @@ router.post('/', async (req, res) => {
     logger.info(`✅ Recurring invoice created: ID ${result.id} for client ${result.client_name}`);
     res.status(201).json({ success: true, data: result });
   } catch (err) {
-    logger.error('Failed to create recurring invoice:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.INVOICING,
+      feature: 'recurring-invoices',
+      extra: { message: 'Failed to create recurring invoice:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -83,7 +90,14 @@ router.get('/', async (req, res) => {
     const result = await recurringInvoiceService.findAll({ client_id, status, frequency, page, limit });
     res.json({ success: true, ...result });
   } catch (err) {
-    logger.error('Failed to list recurring invoices:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.INVOICING,
+      feature: 'recurring-invoices',
+      extra: { message: 'Failed to list recurring invoices:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -95,7 +109,14 @@ router.get('/stats', async (req, res) => {
     const stats = await recurringInvoiceService.getDashboardStats();
     res.json({ success: true, data: stats });
   } catch (err) {
-    logger.error('Failed to get recurring invoice stats:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.INVOICING,
+      feature: 'recurring-invoices',
+      extra: { message: 'Failed to get recurring invoice stats:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -108,7 +129,14 @@ router.get('/:id', async (req, res) => {
     if (!result) return res.status(404).json({ success: false, message: 'Recurring invoice not found' });
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('Failed to get recurring invoice:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.INVOICING,
+      feature: 'recurring-invoices',
+      extra: { message: 'Failed to get recurring invoice:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -124,7 +152,14 @@ router.put('/:id', async (req, res) => {
     logger.info(`✅ Recurring invoice updated: ID ${req.params.id}`);
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('Failed to update recurring invoice:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.INVOICING,
+      feature: 'recurring-invoices',
+      extra: { message: 'Failed to update recurring invoice:' }
+    });
     const status = err.message.includes('not found') ? 404 : 500;
     res.status(status).json({ success: false, message: err.message });
   }
@@ -138,7 +173,14 @@ router.delete('/:id', async (req, res) => {
     logger.info(`🗑️ Recurring invoice cancelled: ID ${req.params.id}`);
     res.json({ success: true, ...result });
   } catch (err) {
-    logger.error('Failed to delete recurring invoice:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.INVOICING,
+      feature: 'recurring-invoices',
+      extra: { message: 'Failed to delete recurring invoice:' }
+    });
     const status = err.message.includes('not found') ? 404 : 500;
     res.status(status).json({ success: false, message: err.message });
   }
@@ -152,7 +194,14 @@ router.post('/:id/pause', async (req, res) => {
     logger.info(`⏸️ Recurring invoice paused: ID ${req.params.id}`);
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('Failed to pause recurring invoice:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.INVOICING,
+      feature: 'recurring-invoices',
+      extra: { message: 'Failed to pause recurring invoice:' }
+    });
     const status = err.message.includes('not found') ? 404 : 400;
     res.status(status).json({ success: false, message: err.message });
   }
@@ -166,7 +215,14 @@ router.post('/:id/resume', async (req, res) => {
     logger.info(`▶️ Recurring invoice resumed: ID ${req.params.id}`);
     res.json({ success: true, data: result });
   } catch (err) {
-    logger.error('Failed to resume recurring invoice:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.INVOICING,
+      feature: 'recurring-invoices',
+      extra: { message: 'Failed to resume recurring invoice:' }
+    });
     const status = err.message.includes('not found') ? 404 : 400;
     res.status(status).json({ success: false, message: err.message });
   }
@@ -195,7 +251,14 @@ router.post('/:id/generate', async (req, res) => {
 
     res.status(201).json({ success: true, data: result });
   } catch (err) {
-    logger.error('Failed to generate invoice:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.INVOICING,
+      feature: 'recurring-invoices',
+      extra: { message: 'Failed to generate invoice:' }
+    });
     const status = err.message.includes('not found') ? 404 : 400;
     res.status(status).json({ success: false, message: err.message });
   }
@@ -209,7 +272,14 @@ router.get('/:id/history', async (req, res) => {
     const history = await recurringInvoiceService.getHistory(parseInt(req.params.id), limit);
     res.json({ success: true, data: history });
   } catch (err) {
-    logger.error('Failed to get recurring invoice history:', err);
+    logError({
+      error: err,
+      req,
+      severity: ERROR_SEVERITY.HIGH,
+      category: ERROR_CATEGORY.INVOICING,
+      feature: 'recurring-invoices',
+      extra: { message: 'Failed to get recurring invoice history:' }
+    });
     res.status(500).json({ success: false, message: err.message });
   }
 });
