@@ -418,6 +418,11 @@ function TeamManagementTab() {
     { id: 'manage_expenses', label: 'Manage Expenses', desc: 'Record and approve/reject company expenses' },
     { id: 'manage_employees', label: 'Manage Employees', desc: 'Add, edit, and track attendance of security guards' },
     { id: 'manage_payroll', label: 'Manage Payroll', desc: 'Generate and manage salary slips' },
+    { id: 'view_vouchers', label: 'View Vouchers', desc: 'Can view the list of vouchers and details' },
+    { id: 'create_vouchers', label: 'Create Vouchers', desc: 'Can create new vouchers (Draft state)' },
+    { id: 'edit_vouchers', label: 'Edit Vouchers', desc: 'Can edit existing pending vouchers' },
+    { id: 'delete_vouchers', label: 'Delete Vouchers', desc: 'Can cancel or delete vouchers' },
+    { id: 'approve_vouchers', label: 'Approve Vouchers', desc: 'Can approve vouchers and post them to ledger' },
     { id: 'view_reports', label: 'View Analytics & Reports', desc: 'Access advanced business analytics and reports' },
     { id: 'view_pl_account', label: 'View Profit & Loss Account', desc: 'Access the P&L statement' },
     { id: 'view_dev_errors', label: 'View Developer Error Console', desc: 'Access system diagnostics and error logs' },
@@ -1432,7 +1437,7 @@ function PayrollAdjustmentsTab() {
 function VendorsTab() {
   const [vendors, setVendors] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [newVendor, setNewVendor] = useState({ name: '', contact_info: '' });
+  const [newVendor, setNewVendor] = useState({ name: '', contact_info: '', payment_terms_days: 0 });
   const [saving, setSaving] = useState(false);
 
   const fetchVendors = async () => {
@@ -1451,10 +1456,11 @@ function VendorsTab() {
 
   const handleAdd = async (e) => {
     e.preventDefault();
+    if (!newVendor.name) return;
     setSaving(true);
     try {
-      await api.post('/vendors', newVendor);
-      setNewVendor({ name: '', contact_info: '' });
+      await api.post('/vendors', { ...newVendor, payment_terms_days: parseInt(newVendor.payment_terms_days) || 0 });
+      setNewVendor({ name: '', contact_info: '', payment_terms_days: 0 });
       fetchVendors();
     } catch (err) {
       alert(err.message || 'Failed to add vendor');
@@ -1492,6 +1498,10 @@ function VendorsTab() {
             <label className="block text-xs font-medium text-slate-700 mb-1">Contact Info (Optional)</label>
             <input type="text" value={newVendor.contact_info} onChange={e => setNewVendor({...newVendor, contact_info: e.target.value})} className={inputCls} placeholder="Phone, Email, etc." />
           </div>
+          <div className="w-24">
+            <label className="block text-xs font-medium text-slate-700 mb-1">Terms (Days)</label>
+            <input type="number" min="0" value={newVendor.payment_terms_days} onChange={e => setNewVendor({...newVendor, payment_terms_days: e.target.value})} className={inputCls} placeholder="e.g. 30" />
+          </div>
           <button type="submit" disabled={saving} className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors h-[38px] disabled:opacity-50">
             {saving ? 'Adding...' : 'Add Vendor'}
           </button>
@@ -1502,8 +1512,9 @@ function VendorsTab() {
           {vendors.map((v) => (
             <div key={v.id} className={`flex justify-between items-center p-4 bg-white border ${v.is_active ? 'border-slate-200' : 'border-red-100 bg-red-50'} rounded-lg shadow-sm`}>
               <div>
-                <span className={`text-sm font-bold ${v.is_active ? 'text-slate-800' : 'text-slate-400'}`}>{v.name}</span>
-                {v.contact_info && <p className="text-xs text-slate-500 mt-0.5">{v.contact_info}</p>}
+                <h3 className="text-sm font-bold text-slate-800">{v.name}</h3>
+                {v.contact_info && <p className="text-xs text-slate-500 mt-1">{v.contact_info}</p>}
+                <p className="text-xs text-slate-500 mt-1">Terms: {v.payment_terms_days || 0} days</p>
               </div>
               <button onClick={() => handleToggleActive(v)} className={`text-xs px-3 py-1 rounded font-medium border ${v.is_active ? 'text-slate-500 border-slate-200 hover:bg-slate-100' : 'text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100'}`}>
                 {v.is_active ? 'Deactivate' : 'Activate'}

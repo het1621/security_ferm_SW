@@ -50,7 +50,8 @@ const voucherSchema = Joi.object({
   narration: Joi.string().allow('', null).optional(),
   cheque_number: Joi.string().max(50).allow('', null).optional(),
   cheque_date: Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/).allow('', null).optional(),
-  transaction_ref: Joi.string().max(100).allow('', null).optional()
+  transaction_ref: Joi.string().max(100).allow('', null).optional(),
+  category: Joi.string().max(100).allow('', null).optional()
 });
 
 // ─── Helper: Get Indian Financial Year string ───────────────────────────────
@@ -295,7 +296,7 @@ router.post('/', async (req, res) => {
       debit_account_id, credit_account_id,
       party_type, party_id, party_name,
       reference_type, reference_id,
-      narration, cheque_number, cheque_date, transaction_ref
+      narration, cheque_number, cheque_date, transaction_ref, category
     } = value;
 
     // Validate accounts exist
@@ -318,6 +319,17 @@ router.post('/', async (req, res) => {
     // Initial status: pending_approval (approval workflow enabled)
     const initialStatus = 'pending_approval';
 
+    // Calculate due_date if vendor
+    let due_date = null;
+    if (party_type === 'vendor' && party_id) {
+      const vendorRes = await query('SELECT payment_terms_days FROM vendors WHERE id = $1', [party_id]);
+      if (vendorRes.rows.length > 0 && vendorRes.rows[0].payment_terms_days > 0) {
+        const d = new Date(voucher_date);
+        d.setDate(d.getDate() + vendorRes.rows[0].payment_terms_days);
+        due_date = d.toISOString().split('T')[0];
+      }
+    }
+
     const result = await query(`
       INSERT INTO vouchers (
         voucher_number, voucher_type, voucher_date, amount,
@@ -325,8 +337,8 @@ router.post('/', async (req, res) => {
         party_type, party_id, party_name,
         reference_type, reference_id,
         narration, cheque_number, cheque_date, transaction_ref,
-        status, created_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+        status, created_by, category, due_date
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
       RETURNING *
     `, [
       voucher_number, voucher_type, voucher_date, amount,
@@ -334,7 +346,7 @@ router.post('/', async (req, res) => {
       party_type || null, party_id || null, party_name || null,
       reference_type || null, reference_id || null,
       narration || null, cheque_number || null, cheque_date || null, transaction_ref || null,
-      initialStatus, req.user.userId
+      initialStatus, req.user.userId, category || null, due_date
     ]);
 
     res.status(201).json({
@@ -511,6 +523,72 @@ router.post('/bulk-approve', async (req, res) => {
   } catch (error) {
     logError(error, req, { feature: 'vouchers' });
     res.status(500).json({ success: false, message: 'Failed to bulk approve vouchers' });
+  }
+});
+
+// Make Voucher Recurring
+router.post('/:id/recurring', async (req, res, next) => {
+  try {
+    const { frequency, next_run_date } = req.body;
+    if (!frequency || !next_run_date) {
+      return res.status(400).json({ success: false, message: 'Frequency and next run date are required' });
+    }
+
+    const checkStmt = db.prepare('SELECT id FROM vouchers WHERE id = ?');
+    const voucher = checkStmt.get(req.params.id);
+    if (!voucher) {
+      return res.status(404).json({ success: false, message: 'Voucher not found' });
+    }
+
+    const insertStmt = db.prepare(`
+      INSERT INTO recurring_vouchers (template_voucher_id, frequency, next_run_date, created_by)
+      VALUES (?, ?, ?, ?)
+    `);
+    
+    insertStmt.run(req.params.id, frequency, next_run_date, req.user.id);
+    
+    res.json({ success: true, message: 'Voucher marked as recurring successfully' });
+  } catch (error) {
+    logger.error(`Error making voucher recurring: ${error.message}`);
+    next(error);
+  }
+});
+
+// GET /api/vouchers/aging — Get aging report for vendors
+router.get('/aging', async (req, res, next) => {
+  try {
+    const result = await query(`
+      SELECT 
+        v.id, v.voucher_number, v.voucher_date, v.amount, v.due_date,
+        v.party_id, v.party_name,
+        CAST(julianday('now') - julianday(v.due_date) AS INTEGER) as days_overdue
+      FROM vouchers v
+      WHERE v.party_type = 'vendor' 
+        AND v.status = 'posted'
+        AND v.due_date IS NOT NULL
+        AND v.due_date < date('now')
+      ORDER BY days_overdue DESC
+    `);
+    
+    // Group by aging buckets
+    const aging = {
+      '1_to_30': [],
+      '31_to_60': [],
+      '61_to_90': [],
+      'over_90': []
+    };
+    
+    result.rows.forEach(row => {
+      if (row.days_overdue <= 30) aging['1_to_30'].push(row);
+      else if (row.days_overdue <= 60) aging['31_to_60'].push(row);
+      else if (row.days_overdue <= 90) aging['61_to_90'].push(row);
+      else aging['over_90'].push(row);
+    });
+
+    res.json({ success: true, data: aging });
+  } catch (error) {
+    logger.error('Error fetching aging report:', error);
+    next(error);
   }
 });
 

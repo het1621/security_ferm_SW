@@ -9,12 +9,14 @@ export default function VendorStatements() {
   const [statement, setStatement] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [aging, setAging] = useState(null);
 
   const [agencySettings, setAgencySettings] = useState(null);
 
   useEffect(() => {
     fetchVendors();
     fetchAgencySettings();
+    fetchAging();
   }, []);
 
   const fetchAgencySettings = async () => {
@@ -33,6 +35,15 @@ export default function VendorStatements() {
       setStatement(null);
     }
   }, [selectedVendorId]);
+
+  const fetchAging = async () => {
+    try {
+      const res = await api.get('/vouchers/aging');
+      setAging(res.data || null);
+    } catch (err) {
+      console.error('Failed to load aging', err);
+    }
+  };
 
   const fetchVendors = async () => {
     try {
@@ -128,13 +139,39 @@ export default function VendorStatements() {
       )}
 
       {!selectedVendorId ? (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center print:hidden">
-          <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Building2 className="w-8 h-8 text-slate-400" />
+        aging ? (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
+            <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><Clock className="w-5 h-5 text-amber-500"/> Global Vendor Aging Report</h3>
+            
+            <div className="grid grid-cols-4 gap-4 mb-8">
+              <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100">
+                <p className="text-sm font-medium text-emerald-800">1 - 30 Days</p>
+                <p className="text-2xl font-bold text-emerald-600 mt-2">₹ {aging['1_to_30']?.reduce((acc, curr) => acc + curr.amount, 0).toLocaleString() || 0}</p>
+              </div>
+              <div className="p-4 bg-amber-50 rounded-xl border border-amber-100">
+                <p className="text-sm font-medium text-amber-800">31 - 60 Days</p>
+                <p className="text-2xl font-bold text-amber-600 mt-2">₹ {aging['31_to_60']?.reduce((acc, curr) => acc + curr.amount, 0).toLocaleString() || 0}</p>
+              </div>
+              <div className="p-4 bg-orange-50 rounded-xl border border-orange-100">
+                <p className="text-sm font-medium text-orange-800">61 - 90 Days</p>
+                <p className="text-2xl font-bold text-orange-600 mt-2">₹ {aging['61_to_90']?.reduce((acc, curr) => acc + curr.amount, 0).toLocaleString() || 0}</p>
+              </div>
+              <div className="p-4 bg-red-50 rounded-xl border border-red-100">
+                <p className="text-sm font-medium text-red-800">Over 90 Days</p>
+                <p className="text-2xl font-bold text-red-600 mt-2">₹ {aging['over_90']?.reduce((acc, curr) => acc + curr.amount, 0).toLocaleString() || 0}</p>
+              </div>
+            </div>
+            <p className="text-sm text-slate-500 mb-4">Select a vendor from the dropdown to view detailed statements.</p>
           </div>
-          <h3 className="text-lg font-medium text-slate-900 mb-1">No Vendor Selected</h3>
-          <p className="text-slate-500">Please select a vendor from the dropdown above to view their statement.</p>
-        </div>
+        ) : (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center print:hidden">
+            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Building2 className="w-8 h-8 text-slate-400" />
+            </div>
+            <h3 className="text-lg font-medium text-slate-900 mb-1">No Vendor Selected</h3>
+            <p className="text-slate-500">Please select a vendor from the dropdown above to view their statement.</p>
+          </div>
+        )
       ) : loading ? (
         <div className="flex justify-center p-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500"></div>

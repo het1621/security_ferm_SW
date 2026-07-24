@@ -23,6 +23,7 @@ import StatementArchive from './pages/StatementArchive';
 import PLAccount from './pages/PLAccount';
 import Vouchers from './pages/Vouchers';
 import BalanceSheet from './pages/BalanceSheet';
+import Budgets from './pages/Budgets';
 import BankReconciliation from './pages/BankReconciliation';
 import TaxCalculator from './pages/TaxCalculator';
 import PFGratuity from './pages/PFGratuity';
@@ -52,6 +53,7 @@ function App() {
             <Route path="/ledger" element={<Ledger />} />
             <Route path="/expenses" element={<Expenses />} />
             <Route path="/vendor-statements" element={<VendorStatements />} />
+            <Route path="/budgets" element={<Budgets />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/tax-reports" element={<TaxReports />} />
             <Route path="/tax-calculator" element={<TaxCalculator />} />

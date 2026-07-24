@@ -24,12 +24,12 @@ router.use(requirePermission('manage_expenses'));
 
 router.post('/', async (req, res) => {
   try {
-    const { name, contact_info } = req.body;
+    const { name, contact_info, payment_terms_days } = req.body;
     if (!name) return res.status(400).json({ success: false, message: 'Name is required' });
 
     const result = await query(
-      'INSERT INTO vendors (name, contact_info) VALUES ($1, $2) RETURNING *',
-      [name, contact_info]
+      'INSERT INTO vendors (name, contact_info, payment_terms_days) VALUES ($1, $2, $3) RETURNING *',
+      [name, contact_info, payment_terms_days || 0]
     );
     res.status(201).json({ success: true, data: result.rows[0], message: 'Vendor created successfully' });
   } catch (error) {
@@ -41,10 +41,10 @@ router.post('/', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   try {
-    const { name, contact_info, is_active } = req.body;
+    const { name, contact_info, is_active, payment_terms_days } = req.body;
     const result = await query(
-      'UPDATE vendors SET name=$1, contact_info=$2, is_active=$3, updated_at=CURRENT_TIMESTAMP WHERE id=$4 RETURNING *',
-      [name, contact_info, is_active !== undefined ? is_active : 1, req.params.id]
+      'UPDATE vendors SET name=$1, contact_info=$2, is_active=$3, payment_terms_days=$4, updated_at=CURRENT_TIMESTAMP WHERE id=$5 RETURNING *',
+      [name, contact_info, is_active !== undefined ? is_active : 1, payment_terms_days || 0, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ success: false, message: 'Vendor not found' });
     res.json({ success: true, data: result.rows[0], message: 'Vendor updated successfully' });

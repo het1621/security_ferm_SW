@@ -24,7 +24,8 @@ import {
   Zap,
   Activity,
   HelpCircle,
-  X
+  X,
+  Target
 } from 'lucide-react';
 import classNames from 'classnames';
 
@@ -49,6 +50,7 @@ const navItems = [
   { name: 'Balance Sheet', path: '/balance-sheet', icon: BarChart3, roles: ['admin', 'accountant'] },
   { name: 'Vouchers', path: '/vouchers', icon: BookOpen, roles: ['admin', 'accountant'] },
   { name: 'Bank Reconciliation', path: '/bank-reconciliation', icon: Landmark, roles: ['admin', 'accountant'] },
+  { name: 'Budgets vs Actuals', path: '/budgets', icon: Target, roles: ['admin', 'accountant'] },
   { name: 'divider' },
   { name: 'Audit Logs', path: '/audit-logs', icon: Activity, roles: ['admin'] },
   { name: 'Settings', path: '/settings', icon: Settings, roles: ['admin'] },

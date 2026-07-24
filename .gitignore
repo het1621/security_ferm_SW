@@ -64,5 +64,15 @@ Thumbs.db
 # pnpm-lock.yaml
 
 # Local databases & media reports
-database.sqlite
+database.sqlite*
 *.pdf
+debug_error.png
+debug_html.html
+captured_slides.json
+generate_tour.js
+generate_pdf.js
+capture_all_views.js
+build_master_tour.js
+button_styles.txt
+refactor.py
+scratch/

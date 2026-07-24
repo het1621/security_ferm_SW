@@ -26,7 +26,17 @@ const STATUS_CONFIG = {
 };
 
 export default function Vouchers() {
-  const { token } = useAuth();
+  const { user } = useAuth();
+  
+  // Permission checks
+  const userPerms = typeof user?.permissions === 'string' ? JSON.parse(user?.permissions || '[]') : (user?.permissions || []);
+  const isAdmin = user?.role === 'admin';
+  const canView = isAdmin || userPerms.includes('view_vouchers') || user?.role === 'accountant';
+  const canCreate = isAdmin || userPerms.includes('create_vouchers');
+  const canEdit = isAdmin || userPerms.includes('edit_vouchers');
+  const canDelete = isAdmin || userPerms.includes('delete_vouchers');
+  const canApprove = isAdmin || userPerms.includes('approve_vouchers');
+
   const [vouchers, setVouchers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -67,7 +77,8 @@ export default function Vouchers() {
     cheque_date: '',
     transaction_ref: '',
     reference_type: '',
-    reference_id: ''
+    reference_id: '',
+    category: ''
   });
   const [nextNumber, setNextNumber] = useState('');
   const [summary, setSummary] = useState(null);
@@ -96,7 +107,7 @@ export default function Vouchers() {
       setError('Failed to fetch vouchers');
     }
     setLoading(false);
-  }, [activeType, statusFilter, fromDate, toDate, searchTerm, token]);
+  }, [activeType, statusFilter, fromDate, toDate, searchTerm]);
 
   const fetchBankAccounts = async () => {
     try {
@@ -148,7 +159,7 @@ export default function Vouchers() {
       amount: '', debit_account_id: '', credit_account_id: '',
       party_type: '', party_id: '', party_name: '',
       narration: '', cheque_number: '', cheque_date: '', transaction_ref: '',
-      reference_type: '', reference_id: ''
+      reference_type: '', reference_id: '', category: ''
     });
     setEditingVoucher(null);
     setNextNumber('');
@@ -170,7 +181,8 @@ export default function Vouchers() {
       party_name: v.party_name || '', narration: v.narration || '',
       cheque_number: v.cheque_number || '', cheque_date: v.cheque_date || '',
       transaction_ref: v.transaction_ref || '',
-      reference_type: v.reference_type || '', reference_id: v.reference_id || ''
+      reference_type: v.reference_type || '', reference_id: v.reference_id || '',
+      category: v.category || ''
     });
     setShowModal(true);
   };
@@ -267,29 +279,26 @@ export default function Vouchers() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#1e293b', margin: 0 }}>
-            <FileText size={24} style={{ verticalAlign: 'middle', marginRight: '8px' }} />
-            Vouchers
-          </h1>
-          <p style={{ color: '#64748b', fontSize: '14px', marginTop: '4px' }}>
-            Manage all financial vouchers — Cash, Bank, Journal, Debit/Credit Notes
-          </p>
+          <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#1e293b', margin: 0 }}>Voucher Management</h1>
+          <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>Create, approve, and track financial vouchers</p>
         </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          {pendingCount > 0 && (
+        <div style={{ display: 'flex', gap: '12px' }}>
+          {canApprove && pendingCount > 0 && (
             <button onClick={handleBulkApprove} style={{
               padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer',
               background: '#f59e0b', color: '#fff', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px'
             }}>
-              <CheckCircle size={16} /> Approve All ({pendingCount})
+              <CheckCircle size={16} /> Bulk Approve ({pendingCount})
             </button>
           )}
-          <button 
-            onClick={() => openCreateModal()} 
-            className="px-4 py-2 rounded-lg border-none cursor-pointer bg-teal-600 hover:bg-teal-700 text-white font-semibold flex items-center gap-2 transition-colors text-sm"
-          >
-            <Plus size={16} /> New Voucher
-          </button>
+          {canCreate && (
+            <button 
+              onClick={() => openCreateModal()} 
+              className="px-4 py-2 rounded-lg border-none cursor-pointer bg-teal-600 hover:bg-teal-700 text-white font-semibold flex items-center gap-2 transition-colors text-sm"
+            >
+              <Plus size={18} /> New Voucher
+            </button>
+          )}
         </div>
       </div>
 
@@ -369,7 +378,7 @@ export default function Vouchers() {
                 <th style={{ ...thStyle, textAlign: 'right' }}>Amount</th>
                 <th style={thStyle}>Narration</th>
                 <th style={thStyle}>Status</th>
-                <th style={{ ...thStyle, textAlign: 'center' }}>Actions</th>
+                {canView && <th style={{ ...thStyle, textAlign: 'center' }}>Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -411,24 +420,26 @@ export default function Vouchers() {
                         <StatusIcon size={12} /> {statusCfg?.label}
                       </span>
                     </td>
-                    <td style={{ ...tdStyle, textAlign: 'center' }}>
-                      <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
-                        <button onClick={() => setViewVoucher(v)} title="View"
-                          style={actionBtnStyle}><Eye size={14} /></button>
-                        {v.status === 'pending_approval' && (
-                          <button onClick={() => handleApprove(v.id)} title="Approve"
-                            style={{ ...actionBtnStyle, color: '#22c55e' }}><CheckCircle size={14} /></button>
-                        )}
-                        {['draft', 'pending_approval'].includes(v.status) && (
-                          <button onClick={() => openEditModal(v)} title="Edit"
-                            style={{ ...actionBtnStyle, color: '#3b82f6' }}>✏️</button>
-                        )}
-                        {v.status !== 'cancelled' && (
-                          <button onClick={() => setCancelModal(v)} title="Cancel"
-                            style={{ ...actionBtnStyle, color: '#ef4444' }}><XCircle size={14} /></button>
-                        )}
-                      </div>
-                    </td>
+                    {canView && (
+                      <td style={{ ...tdStyle, textAlign: 'center' }}>
+                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                          <button onClick={() => setViewVoucher(v)} title="View"
+                            style={actionBtnStyle}><Eye size={14} /></button>
+                          {v.status === 'pending_approval' && canApprove && (
+                            <button onClick={() => handleApprove(v.id)} title="Approve"
+                              style={{ ...actionBtnStyle, color: '#22c55e' }}><CheckCircle size={14} /></button>
+                          )}
+                          {v.status === 'draft' && canEdit && (
+                            <button onClick={() => openEditModal(v)} title="Edit"
+                              style={{ ...actionBtnStyle, color: '#3b82f6' }}>✏️</button>
+                          )}
+                          {['draft', 'pending_approval'].includes(v.status) && canDelete && (
+                            <button onClick={() => setCancelModal(v)} title="Cancel"
+                              style={{ ...actionBtnStyle, color: '#ef4444' }}><XCircle size={14} /></button>
+                          )}
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 );
               })}
@@ -511,6 +522,11 @@ export default function Vouchers() {
                       placeholder="Enter name" style={inputStyle} />
                   </div>
                 )}
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <label style={labelStyle}>Budget Category (Optional)</label>
+                  <input type="text" value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
+                    placeholder="e.g. Travel, Office Supplies" style={inputStyle} />
+                </div>
                 <div style={{ gridColumn: '1 / -1' }}>
                   <label style={labelStyle}>Narration / Description</label>
                   <textarea value={form.narration} onChange={e => setForm(f => ({ ...f, narration: e.target.value }))}
@@ -596,6 +612,18 @@ export default function Vouchers() {
                   <div style={{ color: '#dc2626', marginTop: '2px' }}>{viewVoucher.cancellation_reason}</div>
                 </div>
               )}
+            </div>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '20px', justifyContent: 'flex-end' }}>
+              {viewVoucher.status === 'pending_approval' && canApprove && (
+                <button onClick={() => { handleApprove(viewVoucher.id); setViewVoucher(null); }}
+                  style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', background: '#22c55e', color: '#fff', cursor: 'pointer', fontWeight: 600 }}>
+                  Approve Voucher
+                </button>
+              )}
+              <button onClick={() => setViewVoucher(null)}
+                style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#f8fafc', cursor: 'pointer' }}>
+                Close
+              </button>
             </div>
           </div>
         </div>

@@ -52,7 +52,8 @@ if (process.env.NODE_ENV === 'production') {
     origin: function(origin, callback) {
       if (!origin) return callback(null, true);
       if (origin.startsWith('http://localhost:') || 
-          origin.startsWith('http://127.0.0.1:')) {
+          origin.startsWith('http://127.0.0.1:') ||
+          origin.startsWith('http://[::1]:')) {
         return callback(null, true);
       }
       return callback(new Error('Not allowed by CORS'));
@@ -110,6 +111,7 @@ const dashboardRoutes = require('./routes/dashboard');
 const ledgerRoutes = require('./routes/ledger');
 const vendorsRoutes = require('./routes/vendors');
 const { startBackupJob } = require('./utils/backupJob');
+const { initCronJobs } = require('./services/cronService');
 
 // Mount Routes
 app.use('/api/auth', authRoutes);
@@ -142,6 +144,7 @@ app.use('/api/financial-reports', require('./routes/financial-reports'));
 app.use('/api/workflows', require('./routes/workflows'));
 app.use('/api/backups', require('./routes/backups'));
 app.use('/api/audit-logs', require('./routes/audit-logs'));
+app.use('/api/budgets', require('./routes/budgets'));
 
 // Health check
 app.get('/health', (req, res) => {
@@ -168,6 +171,7 @@ app.use((req, res) => {
 // Initialize scheduled cron jobs
 startScheduledJobs();
 startBackupJob();
+initCronJobs();
 
 app.listen(PORT, '0.0.0.0', () => {
   logger.info(`\n🚀 Security Firm API Server running on port ${PORT} (0.0.0.0)`);
